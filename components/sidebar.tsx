@@ -86,7 +86,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             href="#"
             title="Cerrar sesión"
             onClick={onNavigate}
-            className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-canvas text-muted-strong"
+            className="relative flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-canvas text-muted-strong after:absolute after:-inset-1.5 after:content-['']"
           >
             <LogoutIcon />
           </a>
@@ -112,7 +112,7 @@ export default function Sidebar() {
         >
           <MenuIcon />
         </button>
-        <a href="#" className="flex items-center gap-2.5">
+        <a href="#" className="flex h-11 items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[linear-gradient(155deg,#F8C3A8,#F2937A)]">
             <SunIcon />
           </span>
@@ -138,7 +138,7 @@ export default function Sidebar() {
               type="button"
               aria-label="Cerrar menú"
               onClick={close}
-              className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-[10px] text-muted-strong"
+              className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-strong"
             >
               <CloseIcon />
             </button>

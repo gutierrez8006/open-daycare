@@ -69,13 +69,16 @@ export default function PostCard({ post }: { post: Post }) {
         </span>
         <a
           href="#"
-          className="flex items-center gap-[7px] text-sm font-bold text-muted-strong"
+          className="-mx-3 -my-3 flex items-center gap-[7px] px-3 py-3 text-sm font-bold text-muted-strong"
         >
           <CommentIcon />
           {post.comments}
         </a>
         <span className="flex-1" />
-        <a href="#" className="text-sm font-extrabold text-[#C5503A]">
+        <a
+          href="#"
+          className="-mx-3 -my-3 px-3 py-3 text-sm font-extrabold text-[#C5503A]"
+        >
           Editar
         </a>
       </div>
