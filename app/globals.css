@@ -10,12 +10,14 @@
   --color-brand: #D9583C;
   --color-brand-soft: #F2937A;
   --color-accent: #2E89A6;
+  --font-sans: var(--font-nunito), system-ui, sans-serif;
+  --font-display: var(--font-fredoka), system-ui, sans-serif;
 }
 
 body {
   background-color: var(--color-canvas);
   color: var(--color-ink);
-  font-family: "Nunito", system-ui, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
