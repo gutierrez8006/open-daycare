@@ -11,5 +11,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## MCPs
 
 - Playwright Screenshots y cualquier cosa relacionada a Playwright tienen que estar en la carpeta .playwright-mcp.
+- Context7 Usaremos este MCP para traer la documentación actualizada del framework.
+
+## Spec Driven Development - Skills
+- /spec Usaremos esta habilidad para crear las especificaciones.
+- /spec-impl Usaremos esta skill para hacer las implementaciones.
+
+
 
 
