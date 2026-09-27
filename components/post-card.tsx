@@ -39,7 +39,7 @@ export default function PostCard({ post }: { post: Post }) {
           </div>
         </div>
         <div
-          className={`flex items-center gap-[7px] rounded-full px-3 py-1.5 text-[12px] font-extrabold tracking-[.5px] ${badge.className}`}
+          className={`flex items-center gap-[7px] rounded-full px-3 py-1.5 font-display text-[12px] font-extrabold tracking-[.5px] ${badge.className}`}
         >
           <span className="h-2 w-2 rounded-full bg-current" />
           {badge.label}
