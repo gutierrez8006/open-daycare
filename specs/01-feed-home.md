@@ -1,6 +1,6 @@
 # SPEC 01 — Feed como página de inicio
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** —
 > **Date:** 2026-09-27
 > **Objective:** Implementar el mockup `references/pantallas/feed.dc.html` como página de inicio `/`, con sidebar responsive, sin autenticación ni base de datos, replicando fielmente su estilo.
@@ -78,16 +78,16 @@ Convenciones:
 
 ## Acceptance criteria
 
-- [ ] `/` renderiza el feed con fondo `#F6ECDF`, cards `#FFFDF9` y bordes `#ECE0D0` (sin restos de la paleta zinc).
-- [ ] Los textos usan Nunito y los títulos/badges Fredoka.
-- [ ] Se ven los 3 posts del mockup en orden (logro, actividad con foto, anuncio) con sus badges de color correctos.
-- [ ] La cabecera muestra la fecha de hoy calculada en runtime.
-- [ ] En ≥1024px el sidebar de 248px queda fijo y el main scrollea por separado.
-- [ ] En ≤767px no hay scroll horizontal y la hamburguesa abre/cierra el drawer (también al tocar el overlay).
-- [ ] Todos los enlaces del mockup tienen `href="#"` (ninguna ruta rota).
-- [ ] Los posts provienen de `data/mock.ts`; `app/page.tsx` no contiene datos inline de posts.
-- [ ] `npm run build` pasa (incluye typecheck) y `npm run lint` no arroja errores.
-- [ ] No hay llamadas a red, ni persistencia, ni estado de sesión.
+- [x] `/` renderiza el feed con fondo `#F6ECDF`, cards `#FFFDF9` y bordes `#ECE0D0` (sin restos de la paleta zinc).
+- [x] Los textos usan Nunito y los títulos/badges Fredoka.
+- [x] Se ven los 3 posts del mockup en orden (logro, actividad con foto, anuncio) con sus badges de color correctos.
+- [x] La cabecera muestra la fecha de hoy calculada en runtime.
+- [x] En ≥1024px el sidebar de 248px queda fijo y el main scrollea por separado.
+- [x] En ≤767px no hay scroll horizontal y la hamburguesa abre/cierra el drawer (también al tocar el overlay).
+- [x] Todos los enlaces del mockup tienen `href="#"` (ninguna ruta rota).
+- [x] Los posts provienen de `data/mock.ts`; `app/page.tsx` no contiene datos inline de posts.
+- [x] `npm run build` pasa (incluye typecheck) y `npm run lint` no arroja errores.
+- [x] No hay llamadas a red, ni persistencia, ni estado de sesión.
 
 ## Decisions
 
@@ -118,3 +118,18 @@ Convenciones:
 - Versionado de datos, migraciones o seeds.
 
 Cada uno de esos, si llega, va en su propio spec.
+
+## Verification log
+
+| # | Criterio | Veredicto | Evidencia |
+|---|----------|-----------|-----------|
+| 1 | `/` renderiza el feed con fondo `#F6ECDF`, cards `#FFFDF9` y bordes `#ECE0D0` (sin restos de la paleta zinc) | ✅ | `app/globals.css:4-6` define tokens; computed styles: body `rgb(246,236,223)`, card `rgb(255,253,249)`, border `1px solid rgb(236,224,208)`. Grep de zinc/Geist: 0 resultados. Screenshot `.playwright-mcp/feed-desktop-app.png`. |
+| 2 | Los textos usan Nunito y los títulos/badges Fredoka | ✅ | `app/layout.tsx:2,6-14` carga Fredoka y Nunito vía `next/font/google`. Computed: body `Nunito, "Nunito Fallback"`, h1 y badges `Fredoka, "Fredoka Fallback"`. |
+| 3 | Se ven los 3 posts del mockup en orden (logro, actividad con foto, anuncio) con sus badges de color correctos | ✅ | `data/mock.ts:19-63` exporta los 3 posts en orden. `components/post-card.tsx:3-7` mapea badges: LOGRO `#3E9B6C`, ACTIVIDAD `#2E89A6`, ANUNCIO `#4E72C8`. Snapshot confirma orden y contenido. |
+| 4 | La cabecera muestra la fecha de hoy calculada en runtime | ✅ | `app/page.tsx:8-14` usa `new Intl.DateTimeFormat("es-AR", …).format(new Date())`. Evaluación: texto renderizado `"domingo 27 sept"` coincide con la fecha de hoy. |
+| 5 | En ≥1024px el sidebar de 248px queda fijo y el main scrollea por separado | ✅ | `components/sidebar.tsx:125` aside `w-[248px] sticky`. `app/layout.tsx:30` main `lg:h-screen lg:overflow-y-auto`. Computed: aside width `248px`, position `sticky`; main overflowY `auto`, height `900px`. |
+| 6 | En ≤767px no hay scroll horizontal y la hamburguesa abre/cierra el drawer (también al tocar el overlay) | ✅ | Evaluación a 375px: `scrollWidth === clientWidth === 375`, sin scroll horizontal. `components/sidebar.tsx:106-114` botón hamburguesa; `:129-148` drawer con overlay `onClick={close}`. Prueba Playwright: click en "Abrir menú" → drawer abre; click en overlay (350,400) → drawer cierra. Screenshots `.playwright-mcp/feed-mobile-*.png`. |
+| 7 | Todos los enlaces del mockup tienen `href="#"` (ninguna ruta rota) | ✅ | Grep de `href=` en `*.tsx`: 9 resultados, todos `href="#"` o `href={item.href}` donde `item.href` es `"#"` (`components/sidebar.tsx:15-18`). |
+| 8 | Los posts provienen de `data/mock.ts`; `app/page.tsx` no contiene datos inline de posts | ✅ | `app/page.tsx:1` importa `posts` desde `@/data/mock`. `app/page.tsx` no contiene literales de posts. `data/mock.ts:19-63` define el array completo. |
+| 9 | `npm run build` pasa (incluye typecheck) y `npm run lint` no arroja errores | ✅ | `npm run lint`: sin errores. `npm run build`: ✓ Compiled successfully, ✓ TypeScript finished, ✓ Generating static pages. |
+| 10 | No hay llamadas a red, ni persistencia, ni estado de sesión | ✅ | Grep de `fetch|localStorage|sessionStorage|useEffect`: 0 resultados en `app/`, `components/`, `data/`. Network tab Playwright: 0 requests fetch/xhr/api. |

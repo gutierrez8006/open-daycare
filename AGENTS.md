@@ -61,6 +61,10 @@ npm run lint    # eslint plano (next lint ya no existe)
 - Ambas skills están pineadas en `skills-lock.json` (origen `klerith/fernando-skills`); no las edites a mano.
 - `/spec` exige responder en el mismo idioma del prompt inicial.
 
+## Agents
+
+- **spec-verifier** (`.opencode/agents/spec-verifier.md`): verifica, corrige y marca los criterios de aceptación de `specs/*.md`. Usa Context7 para APIs de Next.js y Playwright para verificación visual. Corre `npm run lint` y `npm run build`, compara screenshots contra mockups, y actualiza los checkboxes del spec con evidencia concreta. No commitea.
+
 ## MCPs
 
 - **Playwright** (`.opencode/opencode.json`, `@playwright/mcp@latest`): todo artefacto suyo — screenshots, snapshots, console logs — va en `.playwright-mcp/` (ya está en `.gitignore`).
