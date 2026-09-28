@@ -6,7 +6,10 @@
       "command": [
         "npx",
         "-y",
-        "@playwright/mcp@latest"
+        "@playwright/mcp@latest",
+        "--caps",
+        "vision",
+        "--allow-unrestricted-file-access"
       ],
       "enabled": true
     }
