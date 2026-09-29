@@ -20,7 +20,7 @@ function statusText(parent: Child["parents"][number]): string {
 
 export default function KidProfile({ child }: { child: Child }) {
   return (
-    <div className="mx-auto w-full max-w-[820px] px-10 pb-20 pt-[34px]">
+    <div className="mx-auto w-full max-w-[820px] px-10 pb-20 pt-[34px] [line-height:normal]">
       <Link
         href="/kids"
         className="mb-5 inline-flex items-center gap-[7px] text-[14px] font-bold text-muted-strong"
@@ -41,7 +41,7 @@ export default function KidProfile({ child }: { child: Child }) {
             >
               {child.initial}
             </div>
-            <div className="min-w-0 flex-1 basis-[180px]">
+            <div className="min-w-0 flex-1 basis-[160px]">
               <h1 className="font-display text-[28px] font-semibold text-ink">
                 {child.name}
               </h1>
@@ -89,7 +89,7 @@ export default function KidProfile({ child }: { child: Child }) {
             Resumen del día
           </a>
 
-          <div className="rounded-[16px] border border-line bg-card p-[18px]">
+          <div className="rounded-[16px] border border-line bg-card px-[18px] py-4">
             <div className="mb-[14px] text-[12.5px] font-extrabold tracking-[.8px] text-[#8A7C6D]">
               PADRES VINCULADOS
             </div>
@@ -113,7 +113,7 @@ export default function KidProfile({ child }: { child: Child }) {
                       {parent.name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[14.5px] font-extrabold text-ink">
+                      <div className="text-[14.5px] font-extrabold text-ink">
                         {parent.name}
                       </div>
                       <div className="text-[12.5px] text-muted">

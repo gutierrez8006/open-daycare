@@ -1,6 +1,6 @@
-# SPEC 02 — Listado y perfil de niños (`/kids`)
+﻿# SPEC 02 — Listado y perfil de niños (`/kids`)
 
-> **Status:** Aprobado
+> **Status:** Implemented
 > **Depends on:** SPEC 01
 > **Date:** 2026-09-27
 > **Objective:** Implementar las pantallas de listado y perfil de niños (`/kids` y `/kids/[id]`) como interfaces estáticas con datos ficticios, replicando fielmente `ninos.dc.html` y `perfil-nino.dc.html`.
@@ -76,19 +76,19 @@ Los badges del listado se **derivan**, no se guardan: `allergies.length > 0` →
 
 ## Acceptance criteria
 
-- [ ] `/kids` muestra las 8 tarjetas en el orden del mockup, con avatar, colores y subtítulos correctos.
-- [ ] Badges derivados: MANÍ/LACTOSA con colores del enum, Valentina "VINCULAR", el resto chevron.
-- [ ] El buscador filtra por nombre ignorando mayúsculas y acentos; vaciarlo restaura los 8.
-- [ ] "8 niños" proviene de `children.length`, no de un literal.
-- [ ] Cada tarjeta linkea a `/kids/<id>` y ese perfil renderiza los datos del niño correcto.
-- [ ] `/kids/<id>` inexistente responde 404 (`notFound()`).
-- [ ] El perfil muestra el banner de alergias solo si `allergyNotes` existe, las 3 filas de datos y los padres con badges ACTIVA/PENDIENTE.
-- [ ] "Volver a Niños" → `/kids`.
-- [ ] Sidebar: "Niños" linkea a `/kids` y queda activo en ambas rutas kids; "Feed" activo solo en `/`.
-- [ ] "Editar", "Resumen del día", "Vincular otro padre" y "Agregar niño" → `#`.
-- [ ] ≥768px: 2 columnas; ≤767px: 1 columna y sin scroll horizontal a 375px.
-- [ ] Páginas sin datos inline: todo importa de `data/children.ts`.
-- [ ] `npm run build` y `npm run lint` pasan; sin llamadas a red ni persistencia.
+- [x] `/kids` muestra las 8 tarjetas en el orden del mockup, con avatar, colores y subtítulos correctos. — _Evidence: `data/children.ts:40-202`, screenshot `.playwright-mcp/kids-desktop.png`_
+- [x] Badges derivados: MANÍ/LACTOSA con colores del enum, Valentina "VINCULAR", el resto chevron. — _Evidence: `kid-card.tsx:13-20`, `data/children.ts:10-15`_
+- [x] El buscador filtra por nombre ignorando mayúsculas y acentos; vaciarlo restaura los 8. — _Evidence: `kids-directory.tsx:7-13` (NFD normalize), tested "sof"/"sofia"/clear_
+- [x] "8 niños" proviene de `children.length`, no de un literal. — _Evidence: `kids-directory.tsx:41`_
+- [x] Cada tarjeta linkea a `/kids/<id>` y ese perfil renderiza los datos del niño correcto. — _Evidence: `kid-card.tsx:24`, screenshot `.playwright-mcp/kid-profile-desktop.png`_
+- [x] `/kids/<id>` inexistente responde 404 (`notFound()`). — _Evidence: `app/kids/[id]/page.tsx:11`, tested `/kids/xyz-unknown` → 404_
+- [x] El perfil muestra el banner de alergias solo si `allergyNotes` existe, las 3 filas de datos y los padres con badges ACTIVA/PENDIENTE. — _Evidence: `kid-profile.tsx:60-74`, verified Mateo (banner) vs Sofía (no banner)_
+- [x] "Volver a Niños" → `/kids`. — _Evidence: `kid-profile.tsx:25`_
+- [x] Sidebar: "Niños" linkea a `/kids` y queda activo en ambas rutas kids; "Feed" activo solo en `/`. — _Evidence: `sidebar.tsx:25-27`, verified aria-current on `/`, `/kids`, `/kids/mateo-fernandez`_
+- [x] "Editar", "Resumen del día", "Vincular otro padre" y "Agregar niño" → `#`. — _Evidence: `kid-profile.tsx:53,85,133`, `app/kids/page.tsx:16`_
+- [x] ≥768px: 2 columnas; ≤767px: 1 columna y sin scroll horizontal a 375px. — _Evidence: `kids-directory.tsx:50` (`md:grid-cols-2`), verified scrollWidth === clientWidth at 375px_
+- [x] Páginas sin datos inline: todo importa de `data/children.ts`. — _Evidence: all pages/components import from `@/data/children`_
+- [x] `npm run build` y `npm run lint` pasan; sin llamadas a red ni persistencia. — _Evidence: both commands passed, grep for fetch/localStorage/sessionStorage found nothing_
 
 ## Decisions
 
@@ -109,3 +109,21 @@ Los badges del listado se **derivan**, no se guardan: `allergies.length > 0` →
 | Cambiar el href de "Niños" invalida el criterio 7 del spec 01 ("todos los href son `#`") | Es un cambio deliberado de este spec; al aprobarlo, el criterio 1 de esta lista lo reemplaza. |
 | 8 paletas de avatar hardcodeadas generan ruido de clases arbitrarias | Se mantienen como `bg-[#A9D9E8]` en `kid-card`; si en el futuro hay DB, el mapa vive en el tipo `avatar`. |
 | `notFound()` muestra el 404 default de Next, sin estética de la app | Aceptado por ahora; una página 404 con la paleta es alcance de otro spec. |
+
+## Verification log
+
+| # | Criterion | Verdict | Evidence |
+|---|-----------|---------|----------|
+| 1 | `/kids` muestra las 8 tarjetas en el orden del mockup, con avatar, colores y subtítulos correctos. | ✅ | Snapshot shows all 8 children in order: Mateo, Sofía, Benjamín, Valentina, Tomás, Emma, Lucas, Olivia. Each has avatar with correct colors from `data/children.ts:40-202`, name, age, parents count. Screenshot: `.playwright-mcp/kids-desktop.png` |
+| 2 | Badges derivados: MANÍ/LACTOSA con colores del enum, Valentina "VINCULAR", el resto chevron. | ✅ | `data/children.ts:10-15` defines allergyColors. `components/kid-card.tsx:13-20` derives badges: Mateo shows "MANÍ" (#FBD8CC/#D9684A), Tomás shows "LACTOSA", Valentina shows "VINCULAR" (#F9D2DE/#C56486), others show chevron. |
+| 3 | El buscador filtra por nombre ignorando mayúsculas y acentos; vaciarlo restaura los 8. | ✅ | `components/kids-directory.tsx:7-13` normalizes with NFD. Tested: "sof" → 1 result (Sofía), "sofia" (no accent) → 1 result, clearing → 8 results. |
+| 4 | "8 niños" proviene de `children.length`, no de un literal. | ✅ | `components/kids-directory.tsx:41` uses `{children.length} niños`. |
+| 5 | Cada tarjeta linkea a `/kids/<id>` y ese perfil renderiza los datos del niño correcto. | ✅ | `components/kid-card.tsx:24` has `href={/kids/${child.id}}`. Navigated to `/kids/mateo-fernandez` → shows Mateo's data. Screenshot: `.playwright-mcp/kid-profile-desktop.png` |
+| 6 | `/kids/<id>` inexistente responde 404 (`notFound()`). | ✅ | `app/kids/[id]/page.tsx:11` calls `notFound()`. Navigated to `/kids/xyz-unknown` → 404 page. |
+| 7 | El perfil muestra el banner de alergias solo si `allergyNotes` existe, las 3 filas de datos y los padres con badges ACTIVA/PENDIENTE. | ✅ | `components/kid-profile.tsx:60-74` conditionally renders banner. Mateo (has allergyNotes) shows banner, Sofía (no allergyNotes) doesn't. All profiles show 3 rows (Fecha de nacimiento, Sala, Ingreso). Parents show ACTIVA (#CFEBD8/#3E9B6C) / PENDIENTE (#F7E7A6/#9A7B1E) badges. |
+| 8 | "Volver a Niños" → `/kids`. | ✅ | `components/kid-profile.tsx:25` has `href="/kids"`. |
+| 9 | Sidebar: "Niños" linkea a `/kids` y queda activo en ambas rutas kids; "Feed" activo solo en `/`. | ✅ | `components/sidebar.tsx:25-27` has `href="/kids"`, `isActive: (pathname) => pathname === "/kids" \|\| pathname.startsWith("/kids/")`. Verified: on `/` Feed is active (aria-current="page"), on `/kids` Niños is active, on `/kids/mateo-fernandez` Niños is active. |
+| 10 | "Editar", "Resumen del día", "Vincular otro padre" y "Agregar niño" → `#`. | ✅ | `app/kids/page.tsx:16` "Agregar niño" href="#". `components/kid-profile.tsx:53` "Editar" href="#", line 85 "Resumen del día" href="#", line 133 "Vincular otro padre" href="#". |
+| 11 | ≥768px: 2 columnas; ≤767px: 1 columna y sin scroll horizontal a 375px. | ✅ | `components/kids-directory.tsx:50` has `grid grid-cols-1 md:grid-cols-2` (md = 768px). Verified at 375px: no horizontal scroll (scrollWidth === clientWidth). Screenshot: `.playwright-mcp/kids-mobile.png` |
+| 12 | Páginas sin datos inline: todo importa de `data/children.ts`. | ✅ | `app/kids/page.tsx:1` imports KidsDirectory. `app/kids/[id]/page.tsx:2` imports getChild. `components/kids-directory.tsx:4`, `components/kid-card.tsx:2-3`, `components/kid-profile.tsx:2` all import from `@/data/children`. |
+| 13 | `npm run build` y `npm run lint` pasan; sin llamadas a red ni persistencia. | ✅ | `npm run lint` passed with no errors. `npm run build` passed (TypeScript + static generation). Grep for `fetch|localStorage|sessionStorage` in app/ and components/ found nothing. |
