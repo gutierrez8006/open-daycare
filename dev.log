@@ -1,0 +1,47 @@
+
+> open-daycare@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.18.70:3000
+✓ Ready in 2.5s
+✓ Running next.config.ts took 133ms
+
+ GET /kids 200 in 549ms (next.js: 391ms, application-code: 157ms)
+ GET / 200 in 57ms (next.js: 20ms, application-code: 37ms)
+ GET /kids 200 in 20ms (next.js: 5ms, application-code: 15ms)
+ GET / 200 in 24ms (next.js: 5ms, application-code: 19ms)
+ GET /kids 200 in 19ms (next.js: 4ms, application-code: 15ms)
+ GET / 200 in 23ms (next.js: 5ms, application-code: 18ms)
+ GET /kids 200 in 18ms (next.js: 4ms, application-code: 13ms)
+ GET / 200 in 29ms (next.js: 6ms, application-code: 23ms)
+✓ Compiled in 35ms
+ GET / 200 in 79ms (next.js: 15ms, application-code: 64ms)
+✓ Compiled in 35ms
+ GET / 200 in 39ms (next.js: 11ms, application-code: 28ms)
+ GET / 200 in 39ms (next.js: 10ms, application-code: 29ms)
+✓ Compiled in 31ms
+ GET / 200 in 39ms (next.js: 11ms, application-code: 28ms)
+✓ Compiled in 42ms
+✓ Compiled in 34ms
+ GET / 200 in 41ms (next.js: 11ms, application-code: 30ms)
+ GET / 200 in 35ms (next.js: 11ms, application-code: 24ms)
+✓ Compiled in 33ms
+ GET /kids 200 in 71ms (next.js: 14ms, application-code: 57ms)
+ GET /kids 200 in 36ms (next.js: 4ms, application-code: 32ms)
+ GET /kids/mateo-fernandez 200 in 529ms (next.js: 473ms, application-code: 57ms)
+ GET /kids/xyz-unknown 404 in 61ms (next.js: 11ms, application-code: 50ms)
+ GET /kids 200 in 37ms (next.js: 4ms, application-code: 32ms)
+ GET / 200 in 58ms (next.js: 12ms, application-code: 46ms)
+ GET /kids 200 in 46ms (next.js: 10ms, application-code: 36ms)
+ GET /kids/mateo-fernandez 200 in 58ms (next.js: 11ms, application-code: 46ms)
+ GET /kids/sofia-mendez 200 in 54ms (next.js: 9ms, application-code: 45ms)
+ GET /kids/valentina-soto 200 in 48ms (next.js: 10ms, application-code: 38ms)
+ GET /kids 200 in 23ms (next.js: 5ms, application-code: 18ms)
+ GET / 200 in 24ms (next.js: 5ms, application-code: 19ms)
+ GET /kids 200 in 18ms (next.js: 4ms, application-code: 14ms)
+ GET / 200 in 23ms (next.js: 5ms, application-code: 18ms)
+ GET /kids 200 in 19ms (next.js: 4ms, application-code: 14ms)
+ GET /kids/mateo-fernandez 200 in 30ms (next.js: 8ms, application-code: 22ms)
+ GET /kids 200 in 17ms (next.js: 4ms, application-code: 13ms)

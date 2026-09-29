@@ -2,29 +2,43 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { session } from "@/data/mock";
 
 type NavItem = {
   label: string;
   href: string;
-  active?: boolean;
+  isActive: (pathname: string) => boolean;
   icon: ReactNode;
 };
 
 const navItems: NavItem[] = [
-  { label: "Feed", href: "#", active: true, icon: <HomeIcon /> },
-  { label: "Niños", href: "#", icon: <ChildrenIcon /> },
-  { label: "Avisos", href: "#", icon: <BellIcon /> },
-  { label: "Mi cuenta", href: "#", icon: <UserIcon /> },
+  {
+    label: "Feed",
+    href: "/",
+    isActive: (pathname) => pathname === "/",
+    icon: <HomeIcon />,
+  },
+  {
+    label: "Niños",
+    href: "/kids",
+    isActive: (pathname) =>
+      pathname === "/kids" || pathname.startsWith("/kids/"),
+    icon: <ChildrenIcon />,
+  },
+  { label: "Avisos", href: "/notices", isActive: (pathname) => pathname === "/notices", icon: <BellIcon /> },
+  { label: "Mi cuenta", href: "/account", isActive: (pathname) => pathname === "/account", icon: <UserIcon /> },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
   const roomLabel = session.sala.name.replace(/^Sala /, "");
 
   return (
     <>
-      <a
-        href="#"
+      <Link
+        href="/"
         onClick={onNavigate}
         className="flex items-center gap-[11px] px-2 pb-[22px] pt-1"
       >
@@ -39,34 +53,37 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             {session.sala.name}
           </span>
         </span>
-      </a>
+      </Link>
 
-      <a
-        href="#"
+      <button
+        type="button"
         onClick={onNavigate}
         className="mb-[18px] flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(180deg,#F4977E,#EE8164)] px-3 py-3 text-[14.5px] font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(238,129,100,.75)]"
       >
         <PlusIcon />
         Nueva publicación
-      </a>
+      </button>
 
       <nav className="flex flex-1 flex-col gap-1">
-        {navItems.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            onClick={onNavigate}
-            aria-current={item.active ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-[12px] px-3 py-[11px] text-[14.5px] ${
-              item.active
-                ? "bg-[#FBE3D8] font-extrabold text-brand"
-                : "font-semibold text-[#6E6359]"
-            }`}
-          >
-            {item.icon}
-            {item.label}
-          </a>
-        ))}
+        {navItems.map((item) => {
+          const active = item.isActive(pathname);
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={`flex items-center gap-3 rounded-[12px] px-3 py-[11px] text-[14.5px] ${
+                active
+                  ? "bg-[#FBE3D8] font-extrabold text-brand"
+                  : "font-semibold text-[#6E6359]"
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="mt-[10px] border-t border-line pt-[14px]">
@@ -82,14 +99,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               {session.user.role} · {roomLabel}
             </span>
           </span>
-          <a
-            href="#"
+          <button
+            type="button"
             title="Cerrar sesión"
             onClick={onNavigate}
             className="relative flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-canvas text-muted-strong after:absolute after:-inset-1.5 after:content-['']"
           >
             <LogoutIcon />
-          </a>
+          </button>
         </div>
       </div>
     </>
@@ -112,14 +129,14 @@ export default function Sidebar() {
         >
           <MenuIcon />
         </button>
-        <a href="#" className="flex h-11 items-center gap-2.5">
+        <Link href="/" className="flex h-11 items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[linear-gradient(155deg,#F8C3A8,#F2937A)]">
             <SunIcon />
           </span>
           <span className="font-display text-[17px] font-semibold leading-none text-ink">
             OpenDayCare
           </span>
-        </a>
+        </Link>
       </header>
 
       <aside className="sticky top-0 hidden h-screen w-[248px] flex-none flex-col border-r border-line bg-card px-4 py-6 lg:flex">
