@@ -31,7 +31,7 @@ export default function KidProfile({ child }: { child: Child }) {
 
       <div className="flex flex-wrap items-start gap-[26px]">
         <div className="flex min-w-0 flex-1 basis-[300px] flex-col gap-[18px]">
-          <div className="flex items-center gap-[18px]">
+          <div className="flex flex-wrap items-center gap-[18px]">
             <div
               className="flex h-[84px] w-[84px] flex-none items-center justify-center rounded-full font-display text-[34px] font-semibold"
               style={{
@@ -41,7 +41,7 @@ export default function KidProfile({ child }: { child: Child }) {
             >
               {child.initial}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 basis-[180px]">
               <h1 className="font-display text-[28px] font-semibold text-ink">
                 {child.name}
               </h1>

@@ -34,7 +34,7 @@ export default function KidCard({ child }: { child: Child }) {
         <div className="truncate font-display text-[16px] font-semibold text-ink">
           {child.name}
         </div>
-        <div className="truncate text-[13px] text-muted">
+        <div className="text-[13px] text-muted">
           {child.ageYears} años · {parentsLabel(child.parents.length)}
         </div>
       </div>
