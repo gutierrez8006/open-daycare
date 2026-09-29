@@ -5,7 +5,7 @@ const LINK_BADGE = { bg: "#F9D2DE", fg: "#C56486" };
 
 function parentsLabel(count: number): string {
   if (count === 0) return "sin padres vinculados";
-  return `${count} ${count === 1 ? "padre" : "padres"} vinculados`;
+  return `${count} ${count === 1 ? "padre vinculado" : "padres vinculados"}`;
 }
 
 export default function KidCard({ child }: { child: Child }) {
