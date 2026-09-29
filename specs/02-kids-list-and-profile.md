@@ -68,7 +68,7 @@ Los badges del listado se **derivan**, no se guardan: `allergies.length > 0` →
 1. Crear `data/children.ts` con tipos, enums de alergias/colores y los 8 niños. Verificación: `npx tsc --noEmit` pasa.
 2. Crear `components/kid-card.tsx` (avatar, nombre, "3 años · 2 padres vinculados", badge/chevron, hover `translateY(-2px)`). Verificación: renderiza con un niño de prueba.
 3. Crear `app/kids/page.tsx` estático con header, buscador visual y grilla → la ruta ya funciona. Verificación: `/kids` muestra las 8 tarjetas en orden.
-4. Crear `components/kids-directory.tsx` (`"use client"`, `useState` + normalización NFD) y mover ahí buscador + grilla. Verificación: filtrar "sof" muestra 1; con acentos ("sancia" → Valentina) también.
+4. Crear `components/kids-directory.tsx` (`"use client"`, `useState` + normalización NFD) y mover ahí buscador + grilla. Verificación: filtrar "sof" muestra 1; sin acentos ("sofia" → Sofía) también.
 5. Crear `components/kid-profile.tsx` y `app/kids/[id]/page.tsx` con `getChild()` y `notFound()` para id desconocido. Verificación: `/kids/mateo-fernandez` coincide con `perfil-nino.dc.html`; `/kids/xyz` → 404.
 6. Actualizar `components/sidebar.tsx`: href `/kids` + activo por `usePathname()`. Verificación: nav correcta desde `/` y desde ambas rutas kids.
 7. Pass responsive: grilla 1 col ≤767px, sin scroll horizontal. Verificación: DevTools a 375px y 1440px.

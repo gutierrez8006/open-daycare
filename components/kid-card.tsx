@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Child } from "@/data/children";
 import { allergyColors, allergyLabels } from "@/data/children";
 
@@ -19,7 +20,7 @@ export default function KidCard({ child }: { child: Child }) {
       : null;
 
   return (
-    <a
+    <Link
       href={`/kids/${child.id}`}
       className="flex min-w-0 items-center gap-[14px] rounded-[18px] border border-line bg-card p-4 shadow-[0_4px_14px_-12px_rgba(120,90,60,.5)] transition duration-150 hover:-translate-y-0.5 hover:border-[#F2A78E]"
     >
@@ -47,7 +48,7 @@ export default function KidCard({ child }: { child: Child }) {
       ) : (
         <ChevronIcon />
       )}
-    </a>
+    </Link>
   );
 }
 
