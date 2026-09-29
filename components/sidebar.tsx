@@ -2,23 +2,36 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { session } from "@/data/mock";
 
 type NavItem = {
   label: string;
   href: string;
-  active?: boolean;
+  isActive: (pathname: string) => boolean;
   icon: ReactNode;
 };
 
 const navItems: NavItem[] = [
-  { label: "Feed", href: "#", active: true, icon: <HomeIcon /> },
-  { label: "Niños", href: "#", icon: <ChildrenIcon /> },
-  { label: "Avisos", href: "#", icon: <BellIcon /> },
-  { label: "Mi cuenta", href: "#", icon: <UserIcon /> },
+  {
+    label: "Feed",
+    href: "#",
+    isActive: (pathname) => pathname === "/",
+    icon: <HomeIcon />,
+  },
+  {
+    label: "Niños",
+    href: "/kids",
+    isActive: (pathname) =>
+      pathname === "/kids" || pathname.startsWith("/kids/"),
+    icon: <ChildrenIcon />,
+  },
+  { label: "Avisos", href: "#", isActive: () => false, icon: <BellIcon /> },
+  { label: "Mi cuenta", href: "#", isActive: () => false, icon: <UserIcon /> },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
   const roomLabel = session.sala.name.replace(/^Sala /, "");
 
   return (
@@ -51,22 +64,25 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </a>
 
       <nav className="flex flex-1 flex-col gap-1">
-        {navItems.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            onClick={onNavigate}
-            aria-current={item.active ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-[12px] px-3 py-[11px] text-[14.5px] ${
-              item.active
-                ? "bg-[#FBE3D8] font-extrabold text-brand"
-                : "font-semibold text-[#6E6359]"
-            }`}
-          >
-            {item.icon}
-            {item.label}
-          </a>
-        ))}
+        {navItems.map((item) => {
+          const active = item.isActive(pathname);
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={`flex items-center gap-3 rounded-[12px] px-3 py-[11px] text-[14.5px] ${
+                active
+                  ? "bg-[#FBE3D8] font-extrabold text-brand"
+                  : "font-semibold text-[#6E6359]"
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </a>
+          );
+        })}
       </nav>
 
       <div className="mt-[10px] border-t border-line pt-[14px]">
