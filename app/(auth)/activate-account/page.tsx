@@ -10,7 +10,7 @@ export default function ActivateAccountPage() {
   const firstName = child.name.split(" ")[0];
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FBF4EC] p-10">
+    <div className="flex min-h-screen items-center justify-center bg-[#FBF4EC] p-6 md:p-10">
       <div className="w-full max-w-[440px]">
         <div className="mb-[22px] flex h-[58px] w-[58px] items-center justify-center rounded-[18px] bg-gradient-to-br from-[#F8C3A8] to-[#F2937A] shadow-[0_12px_26px_-10px_rgba(238,129,100,.65)]">
           <LogoIcon />

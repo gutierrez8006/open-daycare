@@ -3,8 +3,8 @@ import LoginForm from "@/components/login-form";
 
 export default function LoginPage() {
   return (
-    <div className="grid min-h-screen bg-[#FBF4EC] lg:grid-cols-[1.05fr_1fr]">
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#F6A98E] via-[#F2937A] to-[#EC7E62] p-14 text-white lg:flex lg:flex-col lg:justify-between">
+    <div className="grid min-h-screen bg-[#FBF4EC] md:grid-cols-[1.05fr_1fr]">
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#F6A98E] via-[#F2937A] to-[#EC7E62] p-14 text-white md:flex md:flex-col md:justify-between">
         <div className="absolute -right-[120px] -top-[140px] h-[420px] w-[420px] rounded-full bg-white/12" />
         <div className="absolute -bottom-[110px] -left-[80px] h-[300px] w-[300px] rounded-full bg-white/10" />
 
@@ -34,7 +34,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-10">
+      <div className="flex items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-[392px]">
           <h2 className="font-display text-[30px] font-semibold text-ink">
             Iniciar sesión
