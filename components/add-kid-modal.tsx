@@ -135,6 +135,7 @@ export default function AddKidModal() {
                   value={form.fullName}
                   onChange={(event) => setField("fullName", event.target.value)}
                   aria-invalid={Boolean(errors.fullName)}
+                  autoFocus
                   className={inputClass}
                 />
                 {errors.fullName && <div className={errorClass}>{errors.fullName}</div>}
