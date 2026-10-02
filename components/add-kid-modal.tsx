@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { children } from "@/data/children";
 
 const rooms = [...new Set(children.map((child) => child.room))];
@@ -48,10 +48,27 @@ export default function AddKidModal() {
     });
   };
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setOpen(false);
     setErrors({});
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeModal();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, closeModal]);
 
   const handleSave = () => {
     const nextErrors: AddKidErrors = {};
