@@ -8,9 +8,65 @@ const rooms = [...new Set(children.map((child) => child.room))];
 const labelClass = "mb-2 text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
 const inputClass =
   "w-full rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-[13px] text-[15px] text-[#3F362E] outline-none placeholder:text-[#B6A99B]";
+const errorClass = "mt-1.5 text-[12px] font-bold text-[#D9583C]";
+
+const BIRTH_DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
+
+type AddKidForm = {
+  fullName: string;
+  birthDate: string;
+  room: string;
+  allergies: string;
+  medicalNotes: string;
+};
+
+type AddKidErrors = {
+  fullName?: string;
+  birthDate?: string;
+};
+
+const initialForm: AddKidForm = {
+  fullName: "",
+  birthDate: "",
+  room: rooms[0] ?? "Soles",
+  allergies: "",
+  medicalNotes: "",
+};
 
 export default function AddKidModal() {
   const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<AddKidForm>(initialForm);
+  const [errors, setErrors] = useState<AddKidErrors>({});
+
+  const setField = (field: keyof AddKidForm, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => {
+      if (!(field in current)) return current;
+      const next = { ...current };
+      delete next[field as keyof AddKidErrors];
+      return next;
+    });
+  };
+
+  const closeModal = () => {
+    setOpen(false);
+    setErrors({});
+  };
+
+  const handleSave = () => {
+    const nextErrors: AddKidErrors = {};
+    if (form.fullName.trim() === "") {
+      nextErrors.fullName = "Ingresa el nombre completo";
+    }
+    if (!BIRTH_DATE_PATTERN.test(form.birthDate)) {
+      nextErrors.birthDate = "Usa el formato dd/mm/aaaa";
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+    setOpen(false);
+    setForm(initialForm);
+    setErrors({});
+  };
 
   return (
     <>
@@ -26,7 +82,7 @@ export default function AddKidModal() {
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(63,54,46,.45)] px-4 py-10"
-          onClick={() => setOpen(false)}
+          onClick={closeModal}
         >
           <div
             role="dialog"
@@ -37,7 +93,7 @@ export default function AddKidModal() {
             <div className="flex items-center justify-between border-b border-[#ECE0D0] px-[26px] py-5">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={closeModal}
                 className="text-[15px] font-bold text-[#94887B]"
               >
                 Cancelar
@@ -47,6 +103,7 @@ export default function AddKidModal() {
               </span>
               <button
                 type="button"
+                onClick={handleSave}
                 className="text-[15px] font-extrabold text-[#D9583C]"
               >
                 Guardar
@@ -55,20 +112,37 @@ export default function AddKidModal() {
             <div className="px-[26px] py-6">
               <div className="mb-[18px]">
                 <div className={labelClass}>NOMBRE COMPLETO</div>
-                <input type="text" placeholder="Ej. Martina López" className={inputClass} />
+                <input
+                  type="text"
+                  placeholder="Ej. Martina López"
+                  value={form.fullName}
+                  onChange={(event) => setField("fullName", event.target.value)}
+                  aria-invalid={Boolean(errors.fullName)}
+                  className={inputClass}
+                />
+                {errors.fullName && <div className={errorClass}>{errors.fullName}</div>}
               </div>
 
               <div className="mb-[18px] flex gap-[14px]">
                 <div className="min-w-0 flex-1">
                   <div className={labelClass}>FECHA DE NACIMIENTO</div>
-                  <input type="text" placeholder="dd/mm/aaaa" className={inputClass} />
+                  <input
+                    type="text"
+                    placeholder="dd/mm/aaaa"
+                    value={form.birthDate}
+                    onChange={(event) => setField("birthDate", event.target.value)}
+                    aria-invalid={Boolean(errors.birthDate)}
+                    className={inputClass}
+                  />
+                  {errors.birthDate && <div className={errorClass}>{errors.birthDate}</div>}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className={labelClass}>SALA</div>
                   <div className="relative">
                     <select
                       aria-label="Sala"
-                      defaultValue="Soles"
+                      value={form.room}
+                      onChange={(event) => setField("room", event.target.value)}
                       className={`${inputClass} appearance-none pr-10 font-bold`}
                     >
                       {rooms.map((room) => (
@@ -100,6 +174,8 @@ export default function AddKidModal() {
                 <input
                   type="text"
                   placeholder="Ej. Maní, Lactosa"
+                  value={form.allergies}
+                  onChange={(event) => setField("allergies", event.target.value)}
                   className={inputClass}
                 />
               </div>
@@ -108,6 +184,8 @@ export default function AddKidModal() {
                 <div className={labelClass}>NOTAS MÉDICAS</div>
                 <textarea
                   placeholder="Indicaciones, medicación, contactos…"
+                  value={form.medicalNotes}
+                  onChange={(event) => setField("medicalNotes", event.target.value)}
                   className={`${inputClass} min-h-[90px] resize-y leading-[1.5]`}
                 />
               </div>
