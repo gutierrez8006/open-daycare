@@ -12,6 +12,17 @@ const errorClass = "mt-1.5 text-[12px] font-bold text-[#D9583C]";
 
 const BIRTH_DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 
+const isValidBirthDate = (value: string): boolean => {
+  if (!BIRTH_DATE_PATTERN.test(value)) return false;
+  const [day, month, year] = value.split("/").map(Number);
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+};
+
 type AddKidForm = {
   fullName: string;
   birthDate: string;
@@ -75,8 +86,8 @@ export default function AddKidModal() {
     if (form.fullName.trim() === "") {
       nextErrors.fullName = "Ingresa el nombre completo";
     }
-    if (!BIRTH_DATE_PATTERN.test(form.birthDate)) {
-      nextErrors.birthDate = "Usa el formato dd/mm/aaaa";
+    if (!isValidBirthDate(form.birthDate)) {
+      nextErrors.birthDate = "Usa una fecha válida (dd/mm/aaaa)";
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
