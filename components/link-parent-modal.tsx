@@ -1,13 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import type { ParentRelation } from "@/data/children";
+import type { ChildParent, ParentRelation } from "@/data/children";
 import { generateInviteCode } from "@/data/children";
 
 type LinkParentForm = {
   name: string;
   email: string;
   relation: ParentRelation;
+};
+
+type LinkParentErrors = {
+  name?: string;
+  email?: string;
 };
 
 const initialForm: LinkParentForm = {
@@ -20,6 +25,16 @@ const labelClass =
   "mb-2 text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
 const inputClass =
   "w-full rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-[13px] text-[15px] text-[#3F362E] outline-none placeholder:text-[#B6A99B]";
+const errorClass = "mt-1.5 text-[12px] font-bold text-[#D9583C]";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-");
 
 const relationPills: { value: ParentRelation; label: string }[] = [
   { value: "mother", label: "Mamá" },
@@ -30,15 +45,45 @@ const relationPills: { value: ParentRelation; label: string }[] = [
 export default function LinkParentModal({
   childName,
   onClose,
+  onSubmit,
 }: {
   childName: string;
   onClose: () => void;
+  onSubmit: (parent: ChildParent) => void;
 }) {
   const [form, setForm] = useState<LinkParentForm>(initialForm);
+  const [errors, setErrors] = useState<LinkParentErrors>({});
   const [inviteCode] = useState(generateInviteCode);
 
   const setField = (field: keyof LinkParentForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => {
+      if (!(field in current)) return current;
+      const next = { ...current };
+      delete next[field as keyof LinkParentErrors];
+      return next;
+    });
+  };
+
+  const handleSend = () => {
+    const nextErrors: LinkParentErrors = {};
+    if (form.name.trim() === "") {
+      nextErrors.name = "Ingresa el nombre del padre/madre";
+    }
+    if (!EMAIL_PATTERN.test(form.email)) {
+      nextErrors.email = "Ingresa un email válido";
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    onSubmit({
+      id: slugify(form.name),
+      name: form.name.trim(),
+      relation: form.relation,
+      status: "pending",
+    });
+    setForm(initialForm);
+    setErrors({});
   };
 
   return (
@@ -110,8 +155,10 @@ export default function LinkParentModal({
             placeholder="Ej. Diego Fernández"
             value={form.name}
             onChange={(event) => setField("name", event.target.value)}
+            aria-invalid={Boolean(errors.name)}
             className={`${inputClass} mb-[18px]`}
           />
+          {errors.name && <div className={`${errorClass} mb-[18px]`}>{errors.name}</div>}
 
           <div className={labelClass}>EMAIL</div>
           <input
@@ -119,8 +166,10 @@ export default function LinkParentModal({
             placeholder="correo@ejemplo.com"
             value={form.email}
             onChange={(event) => setField("email", event.target.value)}
+            aria-invalid={Boolean(errors.email)}
             className={`${inputClass} mb-[18px]`}
           />
+          {errors.email && <div className={`${errorClass} mb-[18px]`}>{errors.email}</div>}
 
           <div className="mb-5">
             <div className="mb-[10px] text-[12px] font-extrabold tracking-[.7px] text-[#94887B]">
@@ -162,6 +211,7 @@ export default function LinkParentModal({
 
           <button
             type="button"
+            onClick={handleSend}
             className="flex w-full items-center justify-center gap-[9px] rounded-[14px] bg-[linear-gradient(180deg,#F4977E,#EE8164)] py-[14px] text-[15.5px] font-extrabold text-white shadow-[0_10px_22px_-8px_rgba(238,129,100,.7)]"
           >
             <svg

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { children } from "@/data/children";
 import type { ChildParent, ParentStatus } from "@/data/children";
+import LinkParentModal from "@/components/link-parent-modal";
 
 const PARENT_AVATAR_COLORS = ["#C9B6E8", "#A9C7E8"];
 
@@ -22,13 +24,23 @@ function statusText(parent: ChildParent): string {
 }
 
 export default function KidParentsCard({
+  childId,
   childName,
   initialParents,
 }: {
+  childId: string;
   childName: string;
   initialParents: ChildParent[];
 }) {
-  const [parents] = useState(initialParents);
+  const [open, setOpen] = useState(false);
+  const [parents, setParents] = useState(initialParents);
+
+  const handleParentAdded = (parent: ChildParent) => {
+    const child = children.find((entry) => entry.id === childId);
+    if (child) child.parents.push(parent);
+    setParents((current) => [...current, parent]);
+    setOpen(false);
+  };
 
   return (
     <div className="rounded-[16px] border border-line bg-card px-[18px] py-4">
@@ -70,8 +82,9 @@ export default function KidParentsCard({
             </div>
           );
         })}
-        <a
-          href="#"
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
           aria-label={`Vincular otro padre a ${childName}`}
           className="flex items-center gap-3 pt-2"
         >
@@ -81,8 +94,16 @@ export default function KidParentsCard({
           <span className="text-[14.5px] font-extrabold text-[#C5503A]">
             Vincular otro padre
           </span>
-        </a>
+        </button>
       </div>
+
+      {open && (
+        <LinkParentModal
+          childName={childName}
+          onClose={() => setOpen(false)}
+          onSubmit={handleParentAdded}
+        />
+      )}
     </div>
   );
 }
