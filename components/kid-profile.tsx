@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Child, ParentStatus } from "@/data/children";
+import type { Child, ParentRelation, ParentStatus } from "@/data/children";
 
 const PARENT_AVATAR_COLORS = ["#C9B6E8", "#A9C7E8"];
 
@@ -9,7 +9,8 @@ const statusBadge: Record<ParentStatus, { label: string; className: string }> =
     pending: { label: "PENDIENTE", className: "bg-[#F7E7A6] text-[#9A7B1E]" },
   };
 
-function relationLabel(relation: "mother" | "father"): string {
+function relationLabel(relation: ParentRelation): string {
+  if (relation === "tutor") return "Tutor/a";
   return relation === "mother" ? "Mamá" : "Papá";
 }
 

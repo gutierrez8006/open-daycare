@@ -16,12 +16,23 @@ export const allergyColors: Record<Allergy, { bg: string; fg: string }> = {
 
 export type ParentStatus = "active" | "pending";
 
+export type ParentRelation = "mother" | "father" | "tutor";
+
 export type ChildParent = {
   id: string;
   name: string;
-  relation: "mother" | "father";
+  relation: ParentRelation;
   status: ParentStatus;
 };
+
+const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export function generateInviteCode(length = 5): string {
+  return Array.from(
+    { length },
+    () => INVITE_CODE_ALPHABET[Math.floor(Math.random() * INVITE_CODE_ALPHABET.length)],
+  ).join("");
+}
 
 export type Child = {
   id: string;
