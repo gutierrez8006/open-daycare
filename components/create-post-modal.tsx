@@ -9,6 +9,25 @@ const allKidIds = roomKids.map((child) => child.id);
 const labelClass =
   "mb-[10px] text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
 
+type PostKind =
+  | "meal"
+  | "nap"
+  | "activity"
+  | "achievement"
+  | "mood"
+  | "photo"
+  | "announcement";
+
+const postKinds: { id: PostKind; label: string; bg: string; fg: string }[] = [
+  { id: "meal", label: "Comida", bg: "#9A7B1E", fg: "#FFFFFF" },
+  { id: "nap", label: "Siesta", bg: "#E7DCF6", fg: "#7B5FC0" },
+  { id: "activity", label: "Actividad", bg: "#2E89A6", fg: "#FFFFFF" },
+  { id: "achievement", label: "Logro", bg: "#CFEBD8", fg: "#3E9B6C" },
+  { id: "mood", label: "Ánimo", bg: "#F9D2DE", fg: "#C56486" },
+  { id: "photo", label: "Foto", bg: "#FBD8CC", fg: "#D9684A" },
+  { id: "announcement", label: "Anuncio", bg: "#CCD8F4", fg: "#4E72C8" },
+];
+
 export default function CreatePostModal({
   open,
   onClose,
@@ -19,6 +38,8 @@ export default function CreatePostModal({
   onPublish: () => void;
 }) {
   const [selectedKids, setSelectedKids] = useState<string[]>([]);
+  const [selectedKinds, setSelectedKinds] = useState<PostKind[]>([]);
+  const [description, setDescription] = useState("");
 
   if (!open) return null;
 
@@ -37,6 +58,14 @@ export default function CreatePostModal({
   };
 
   const allKidsSelected = selectedKids.length === roomKids.length;
+
+  const toggleKind = (kind: PostKind) => {
+    setSelectedKinds((current) =>
+      current.includes(kind)
+        ? current.filter((item) => item !== kind)
+        : [...current, kind],
+    );
+  };
 
   return (
     <div
@@ -110,7 +139,76 @@ export default function CreatePostModal({
             </button>
           </div>
 
-          {/* Secciones TIPO/DESCRIPCIÓN/FOTOS (Paso 3) */}
+          <div className={labelClass}>TIPO</div>
+          <div className="mb-[22px] flex flex-wrap gap-[9px]">
+            {postKinds.map((kind) => {
+              const selected = selectedKinds.includes(kind.id);
+              return (
+                <button
+                  key={kind.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => toggleKind(kind.id)}
+                  className={`rounded-full border-[1.5px] px-4 py-2 text-[13.5px] font-extrabold ${
+                    selected
+                      ? "border-transparent"
+                      : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
+                  }`}
+                  style={
+                    selected ? { background: kind.bg, color: kind.fg } : undefined
+                  }
+                >
+                  {kind.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className={labelClass}>DESCRIPCIÓN</div>
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Contá cómo le fue hoy…"
+            className="mb-[22px] min-h-[120px] w-full resize-y rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-3.5 text-[15px] leading-[1.5] text-[#3F362E] outline-none placeholder:text-[#B6A99B]"
+          />
+
+          <div className={labelClass}>FOTOS</div>
+          <div className="flex gap-3">
+            <div className="flex h-[96px] w-[96px] items-center justify-center rounded-[14px] border border-[#ECE0D0] bg-[#F4ECE1] text-[#CBB89F]">
+              <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="9" cy="9" r="2" />
+                <path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 21" />
+              </svg>
+            </div>
+            <button
+              type="button"
+              className="flex h-[96px] w-[96px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-[#DBCDBA] bg-[#F4ECE1] text-[12px] text-[#B0A290]"
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#C5503A"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span>Agregar</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
