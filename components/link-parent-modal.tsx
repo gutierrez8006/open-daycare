@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChildParent, ParentRelation } from "@/data/children";
 import { generateInviteCode } from "@/data/children";
 
@@ -54,6 +54,21 @@ export default function LinkParentModal({
   const [form, setForm] = useState<LinkParentForm>(initialForm);
   const [errors, setErrors] = useState<LinkParentErrors>({});
   const [inviteCode] = useState(generateInviteCode);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
 
   const setField = (field: keyof LinkParentForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));

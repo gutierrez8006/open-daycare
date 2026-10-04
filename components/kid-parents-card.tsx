@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { children } from "@/data/children";
 import type { ChildParent, ParentStatus } from "@/data/children";
 import LinkParentModal from "@/components/link-parent-modal";
@@ -34,6 +34,8 @@ export default function KidParentsCard({
 }) {
   const [open, setOpen] = useState(false);
   const [parents, setParents] = useState(initialParents);
+
+  const closeModal = useCallback(() => setOpen(false), []);
 
   const handleParentAdded = (parent: ChildParent) => {
     const child = children.find((entry) => entry.id === childId);
@@ -100,7 +102,7 @@ export default function KidParentsCard({
       {open && (
         <LinkParentModal
           childName={childName}
-          onClose={() => setOpen(false)}
+          onClose={closeModal}
           onSubmit={handleParentAdded}
         />
       )}
