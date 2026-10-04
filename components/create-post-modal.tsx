@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { children } from "@/data/children";
 
 const roomKids = children.slice(0, 3);
@@ -50,6 +50,35 @@ export default function CreatePostModal({
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState<CreatePostErrors>({});
 
+  const resetForm = useCallback(() => {
+    setSelectedKids([]);
+    setSelectedKinds([]);
+    setDescription("");
+    setErrors({});
+  }, []);
+
+  const close = useCallback(() => {
+    resetForm();
+    onClose();
+  }, [onClose, resetForm]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, close]);
+
   if (!open) return null;
 
   const clearError = (field: keyof CreatePostErrors) => {
@@ -88,13 +117,6 @@ export default function CreatePostModal({
     clearError("kinds");
   };
 
-  const resetForm = () => {
-    setSelectedKids([]);
-    setSelectedKinds([]);
-    setDescription("");
-    setErrors({});
-  };
-
   const handlePublish = () => {
     const nextErrors: CreatePostErrors = {};
     if (selectedKids.length === 0) {
@@ -115,7 +137,7 @@ export default function CreatePostModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(63,54,46,.45)] px-4 py-10"
-      onClick={onClose}
+      onClick={close}
     >
       <div
         role="dialog"
@@ -126,7 +148,7 @@ export default function CreatePostModal({
         <div className="flex items-center justify-between border-b border-[#ECE0D0] px-[26px] py-5">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="text-[15px] font-bold text-[#94887B]"
           >
             Cancelar
