@@ -1,6 +1,6 @@
 # SPEC 06 — Modal "Nueva publicación" en `/`
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** SPEC 01
 > **Date:** 2026-10-04
 > **Objective:** Abrir el formulario de `crear-publicacion.dc.html` como modal overlay al pulsar "Nueva publicación" del sidebar, con selección múltiple de niños y TIPOs, validación de PARA/TIPO/DESCRIPCIÓN y cierre visual sin persistencia.
@@ -59,19 +59,37 @@ type PostKind = "meal" | "nap" | "activity" | "achievement" | "mood" | "photo" |
 
 ## Acceptance criteria
 
-- [ ] En `/`, "Nueva publicación" del sidebar abre el modal sin cambiar la URL (también desde el drawer móvil).
-- [ ] El modal replica el mockup: cabecera Cancelar/Nueva publicación/Publicar, card `#FBF4EC` `max-w-[580px]`, secciones PARA/TIPO/DESCRIPCIÓN/FOTOS.
-- [ ] PARA permite 0–3 niños con toggle; "Toda la sala" selecciona los 3 y, si ya están los 3, los limpia.
-- [ ] TIPO permite 0–7 selecciones con toggle; cada pill activo usa su color del mockup.
-- [ ] "Publicar" sin niño muestra error inline en PARA y no cierra.
-- [ ] "Publicar" sin TIPO muestra error inline en TIPO y no cierra.
-- [ ] "Publicar" con descripción vacía muestra error inline y no cierra.
-- [ ] "Publicar" con PARA + TIPO + DESCRIPCIÓN cierra, resetea y deja el feed con los 3 posts intactos, sin crear datos.
-- [ ] "Cancelar", clic en backdrop y `Esc` cierran y resetean quedando en la misma ruta.
-- [ ] Scroll del fondo bloqueado mientras el modal está abierto.
-- [ ] FOTOS muestra thumbnail placeholder + "Agregar" sin acción (no abre file picker).
-- [ ] A 375px no hay scroll horizontal; el card conserva márgenes laterales.
-- [ ] `npm run lint` y `npm run build` pasan; sin `fetch`, `localStorage` ni `sessionStorage`.
+- [x] En `/`, "Nueva publicación" del sidebar abre el modal sin cambiar la URL (también desde el drawer móvil).
+- [x] El modal replica el mockup: cabecera Cancelar/Nueva publicación/Publicar, card `#FBF4EC` `max-w-[580px]`, secciones PARA/TIPO/DESCRIPCIÓN/FOTOS.
+- [x] PARA permite 0–3 niños con toggle; "Toda la sala" selecciona los 3 y, si ya están los 3, los limpia.
+- [x] TIPO permite 0–7 selecciones con toggle; cada pill activo usa su color del mockup.
+- [x] "Publicar" sin niño muestra error inline en PARA y no cierra.
+- [x] "Publicar" sin TIPO muestra error inline en TIPO y no cierra.
+- [x] "Publicar" con descripción vacía muestra error inline y no cierra.
+- [x] "Publicar" con PARA + TIPO + DESCRIPCIÓN cierra, resetea y deja el feed con los 3 posts intactos, sin crear datos.
+- [x] "Cancelar", clic en backdrop y `Esc` cierran y resetean quedando en la misma ruta.
+- [x] Scroll del fondo bloqueado mientras el modal está abierto.
+- [x] FOTOS muestra thumbnail placeholder + "Agregar" sin acción (no abre file picker).
+- [x] A 375px no hay scroll horizontal; el card conserva márgenes laterales.
+- [x] `npm run lint` y `npm run build` pasan; sin `fetch`, `localStorage` ni `sessionStorage`.
+
+## Verification log
+
+| # | Criterion | Verdict | Evidence |
+|---|-----------|---------|----------|
+| 1 | Sidebar abre modal sin cambiar URL; también desde drawer móvil | ✅ | URL `http://localhost:3000/` antes y después; ref=f4e12 (desktop) y ref=f4e346 (drawer); screenshot `.playwright-mcp/modal-opened-desktop.png`, `.playwright-mcp/modal-mobile-375.png` |
+| 2 | Modal replica mockup: cabecera, card #FBF4EC max-w-580px, 4 secciones | ✅ | bg `rgb(251,244,236)`=#FBF4EC, maxWidth 580px, borderRadius 24px, border `#ECE0D0`; screenshot `.playwright-mcp/mockup-crear-publicacion.png` vs `.playwright-mcp/modal-opened-desktop.png` |
+| 3 | PARA toggle 0–3 niños; "Toda la sala" selecciona/limpia | ✅ | Toggle individual: Mateo pressed=true; Toda la sala: clicked → 3 pressed, clicked again → 0 pressed; `components/create-post-modal.tsx:102-107` |
+| 4 | TIPO 0–7 selecciones; colores del mockup | ✅ | Los 7 pills verificados: Comida #9A7B1E, Siesta #E7DCF6, Actividad #2E89A6, Logro #CFEBD8, Ánimo #F9D2DE, Foto #FBD8CC, Anuncio #CCD8F4 — todos match; `components/create-post-modal.tsx:29-37` |
+| 5 | Publicar sin niño → error inline, no cierra | ✅ | Texto "Elegí al menos un niño" visible; modal permanece abierto; ref=f4e167 |
+| 6 | Publicar sin TIPO → error inline, no cierra | ✅ | Texto "Elegí al menos un tipo" visible; modal permanece abierto; ref=f4e168 |
+| 7 | Publicar con descripción vacía → error inline, no cierra | ✅ | Texto "Escribí una descripción" visible; textarea [invalid]; ref=f4e169 |
+| 8 | Publicar válido → cierra, resetea, 3 posts intactos, sin datos nuevos | ✅ | Modal cerrado; `document.querySelectorAll('article').length === 3`; URL sin cambio; reset verificado: 0 pressed, textarea vacío |
+| 9 | Cancelar / backdrop / Esc cierran y resetean en misma ruta | ✅ | Los 3 caminos verificados: backdrop click → modal cerrado + overflow ""; Esc → cerrado; Cancelar → cerrado + reset completo (0 pressed, empty textarea) |
+| 10 | Scroll del fondo bloqueado con modal abierto | ✅ | `document.body.style.overflow === "hidden"` con modal abierto; `""` al cerrar; `components/create-post-modal.tsx:74` |
+| 11 | FOTOS thumbnail + "Agregar" sin acción (no file picker) | ✅ | `type="button"`, sin `<input type="file">` en la página (count=0); thumbnail SVG de imagen placeholder |
+| 12 | A 375px sin scroll horizontal; card con márgenes laterales | ✅ | scrollWidth=375, clientWidth=375, horizontalScroll=false; card left=16px (px-4), width=333px; screenshot `.playwright-mcp/feed-mobile-375.png` |
+| 13 | `npm run lint` y `npm run build` pasan; sin fetch/localStorage | ✅ | `ESLint: No issues found`; `next build` ✓ Compiled, ✓ TypeScript; grep components: 0 matches for fetch/localStorage/sessionStorage |
 
 ## Decisions
 
