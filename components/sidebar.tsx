@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { session } from "@/data/mock";
+import CreatePostModal from "@/components/create-post-modal";
 
 type NavItem = {
   label: string;
@@ -31,7 +32,13 @@ const navItems: NavItem[] = [
   { label: "Mi cuenta", href: "/account", isActive: (pathname) => pathname === "/account", icon: <UserIcon /> },
 ];
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({
+  onNavigate,
+  onCreatePost,
+}: {
+  onNavigate?: () => void;
+  onCreatePost?: () => void;
+}) {
   const pathname = usePathname();
   const roomLabel = session.sala.name.replace(/^Sala /, "");
 
@@ -57,7 +64,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       <button
         type="button"
-        onClick={onNavigate}
+        onClick={() => {
+          onCreatePost?.();
+          onNavigate?.();
+        }}
         className="mb-[18px] flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(180deg,#F4977E,#EE8164)] px-3 py-3 text-[14.5px] font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(238,129,100,.75)]"
       >
         <PlusIcon />
@@ -114,8 +124,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export default function Sidebar() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  const closeDrawer = () => setDrawerOpen(false);
 
   return (
     <>
@@ -123,8 +134,8 @@ export default function Sidebar() {
         <button
           type="button"
           aria-label="Abrir menú"
-          aria-expanded={open}
-          onClick={() => setOpen(true)}
+          aria-expanded={drawerOpen}
+          onClick={() => setDrawerOpen(true)}
           className="flex h-11 w-11 items-center justify-center rounded-[12px] text-ink"
         >
           <MenuIcon />
@@ -140,29 +151,38 @@ export default function Sidebar() {
       </header>
 
       <aside className="sticky top-0 hidden h-screen w-[248px] flex-none flex-col border-r border-line bg-card px-4 py-6 lg:flex">
-        <SidebarContent />
+        <SidebarContent onCreatePost={() => setOpen(true)} />
       </aside>
 
-      {open && (
+      {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
             className="absolute inset-0 bg-black/40"
-            onClick={close}
+            onClick={closeDrawer}
             aria-hidden="true"
           />
           <div className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col border-r border-line bg-card px-4 py-6">
             <button
               type="button"
               aria-label="Cerrar menú"
-              onClick={close}
+              onClick={closeDrawer}
               className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-strong"
             >
               <CloseIcon />
             </button>
-            <SidebarContent onNavigate={close} />
+            <SidebarContent
+              onNavigate={closeDrawer}
+              onCreatePost={() => setOpen(true)}
+            />
           </div>
         </div>
       )}
+
+      <CreatePostModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onPublish={() => setOpen(false)}
+      />
     </>
   );
 }
