@@ -1,6 +1,6 @@
 # SPEC 05 — Modal "Vincular padre" en `/kids/[id]`
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** SPEC 02
 > **Date:** 2026-10-03
 > **Objective:** Abrir el formulario de `vincular-padre.dc.html` como modal en `/kids/[id]` al pulsar "Vincular otro padre", con validación de nombre y email, y al enviar agregar un padre "pendiente" al mock del niño.
@@ -69,16 +69,16 @@ type LinkParentForm = {
 
 ## Acceptance criteria
 
-- [ ] En `/kids/[id]`, "Vincular otro padre" abre el modal sin cambiar la URL.
-- [ ] El modal replica el mockup: cabecera "Vincular padre / a [nombre]", card `#FBF4EC` `max-w-[480px]`, banner azul informativo, inputs Nombre y Email con placeholders, pills Mamá/Papá/Tutor/a, caja código dashed con 5 chars, botón "Enviar invitación" gradiente.
-- [ ] "Enviar invitación" con nombre vacío muestra error inline y no cierra.
-- [ ] "Enviar invitación" con email inválido (sin `@` o sin dominio) muestra error inline y no cierra.
-- [ ] "Enviar invitación" con nombre + email válidos agrega un `ChildParent` con `status: "pending"` y el `relation` seleccionado al mock, y la lista de padres refleja el nuevo entry con badge "PENDIENTE".
-- [ ] El código de invitación es de 5 caracteres alfabéticos y cambia cada vez que se abre el modal.
-- [ ] Botón X, clic en backdrop y `Esc` cierran el modal sin agregar ningún padre.
-- [ ] Scroll del fondo bloqueado mientras el modal está abierto.
-- [ ] `ChildParent.relation` soporta `"tutor"` y se muestra como "Tutor/a" en la lista.
-- [ ] `npm run lint` y `npm run build` pasan; sin `fetch`, `localStorage` ni `sessionStorage`.
+- [x] En `/kids/[id]`, "Vincular otro padre" abre el modal sin cambiar la URL.
+- [x] El modal replica el mockup: cabecera "Vincular padre / a [nombre]", card `#FBF4EC` `max-w-[480px]`, banner azul informativo, inputs Nombre y Email con placeholders, pills Mamá/Papá/Tutor/a, caja código dashed con 5 chars, botón "Enviar invitación" gradiente.
+- [x] "Enviar invitación" con nombre vacío muestra error inline y no cierra.
+- [x] "Enviar invitación" con email inválido (sin `@` o sin dominio) muestra error inline y no cierra.
+- [x] "Enviar invitación" con nombre + email válidos agrega un `ChildParent` con `status: "pending"` y el `relation` seleccionado al mock, y la lista de padres refleja el nuevo entry con badge "PENDIENTE".
+- [x] El código de invitación es de 5 caracteres alfabéticos y cambia cada vez que se abre el modal.
+- [x] Botón X, clic en backdrop y `Esc` cierran el modal sin agregar ningún padre.
+- [x] Scroll del fondo bloqueado mientras el modal está abierto.
+- [x] `ChildParent.relation` soporta `"tutor"` y se muestra como "Tutor/a" en la lista.
+- [x] `npm run lint` y `npm run build` pasan; sin `fetch`, `localStorage` ni `sessionStorage`.
 
 ## Decisions
 
@@ -99,3 +99,18 @@ type LinkParentForm = {
 - Edición o eliminación de padres vinculados.
 - Intercepting routes ni páginas nuevas.
 - Cambios en `globals.css`, fuentes, sidebar o cualquier otra ruta.
+
+## Verification log
+
+| # | Criterio | Veredicto | Evidencia |
+|---|----------|-----------|-----------|
+| 1 | "Vincular otro padre" abre modal sin cambiar URL | ✅ | URL permaneció `http://localhost:3000/kids/mateo-fernandez` tras clic. `components/kid-parents-card.tsx:89` usa `setOpen(true)` (estado cliente, sin routing). |
+| 2 | Modal replica mockup visualmente | ✅ | `components/link-parent-modal.tsx:112` — card `bg-[#FBF4EC] max-w-[480px]`; `:145` — banner azul `bg-[#E3ECFB]`; `:168-187` — inputs con placeholders; `:194-211` — pills Mamá/Papá/Tutor/a; `:215` — caja código `border-dashed`; `:230` — botón gradiente. Screenshots `.playwright-mcp/05-app-modal-desktop.png` vs `.playwright-mcp/05-mockup-desktop.png`. |
+| 3 | Nombre vacío → error inline, no cierra | ✅ | Snapshot muestra "Ingresa el nombre del padre/madre", input `[invalid]`, modal permanece abierto. |
+| 4 | Email inválido → error inline, no cierra | ✅ | Probado con "invalidemail" (sin @) y "user@nodomain" (sin dominio): ambos muestran "Ingresa un email válido", input `[invalid]`, modal abierto. `link-parent-modal.tsx:30` — regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`. |
+| 5 | Submit válido agrega padre con badge PENDIENTE | ✅ | Tras enviar "Roberto Gómez" + "roberto@example.com", snapshot muestra nuevo entry "Roberto Gómez" con "Mamá · invitación enviada" y badge "PENDIENTE". `kid-parents-card.tsx:40-44` — push al array `children` + update estado local. |
+| 6 | Código 5 chars, cambia al reabrir | ✅ | Códigos observados: 4A2PK → SV8KL → 87QYN → 8RF5X (todos distintos, 5 chars). `data/children.ts:30-35` — `generateInviteCode()` con `useState(generateInviteCode)` (lazy initializer, se ejecuta en cada mount). Nota: el alfabeto incluye dígitos (23456789), coincidiendo con el data model del spec. |
+| 7 | X, backdrop y Esc cierran sin agregar padre | ✅ | X: `link-parent-modal.tsx:125`; backdrop onClick: `:107`; Esc listener: `:59-61`. Los tres mecanismos probados y confirmados — modal cierra, ningún padre agregado. |
+| 8 | Scroll del fondo bloqueado | ✅ | `document.body.style.overflow` retorna `"hidden"` con modal abierto (`link-parent-modal.tsx:65`). Se restaura en unmount (`:69`). |
+| 9 | relation "tutor" → "Tutor/a" en lista | ✅ | `data/children.ts:19` — `ParentRelation` incluye `"tutor"`. `kid-parents-card.tsx:17` — `relationLabel` retorna "Tutor/a". Tras enviar con "Tutor/a" seleccionado, snapshot muestra "Ana López" con "Tutor/a · invitación enviada" + badge "PENDIENTE". |
+| 10 | lint + build pasan; sin fetch/localStorage | ✅ | `npm run lint` → "ESLint: No issues found". `npm run build` → "✓ Compiled successfully". `grep` para fetch/localStorage/sessionStorage → "No files found". |
