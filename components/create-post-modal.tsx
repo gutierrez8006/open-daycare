@@ -1,5 +1,14 @@
 "use client";
 
+import { useState } from "react";
+import { children } from "@/data/children";
+
+const roomKids = children.slice(0, 3);
+const allKidIds = roomKids.map((child) => child.id);
+
+const labelClass =
+  "mb-[10px] text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
+
 export default function CreatePostModal({
   open,
   onClose,
@@ -9,7 +18,25 @@ export default function CreatePostModal({
   onClose: () => void;
   onPublish: () => void;
 }) {
+  const [selectedKids, setSelectedKids] = useState<string[]>([]);
+
   if (!open) return null;
+
+  const toggleKid = (id: string) => {
+    setSelectedKids((current) =>
+      current.includes(id)
+        ? current.filter((kidId) => kidId !== id)
+        : [...current, id],
+    );
+  };
+
+  const toggleAllKids = () => {
+    setSelectedKids((current) =>
+      current.length === roomKids.length ? [] : [...allKidIds],
+    );
+  };
+
+  const allKidsSelected = selectedKids.length === roomKids.length;
 
   return (
     <div
@@ -42,7 +69,49 @@ export default function CreatePostModal({
           </button>
         </div>
 
-        <div className="px-[26px] py-6">{/* Secciones PARA/TIPO/DESCRIPCIÓN/FOTOS (Pasos 2–3) */}</div>
+        <div className="px-[26px] py-6">
+          <div className={labelClass}>PARA</div>
+          <div className="mb-[22px] flex flex-wrap gap-[9px]">
+            {roomKids.map((child) => {
+              const selected = selectedKids.includes(child.id);
+              return (
+                <button
+                  key={child.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => toggleKid(child.id)}
+                  className={`flex items-center gap-2 rounded-full border-[1.5px] py-1.5 pl-1.5 pr-3.5 text-[14px] font-bold ${
+                    selected
+                      ? "border-[#3F362E] bg-[#3F362E] text-white"
+                      : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
+                  }`}
+                >
+                  <span
+                    className="flex h-[26px] w-[26px] items-center justify-center rounded-full font-display text-[13px] font-semibold"
+                    style={{ background: child.avatar.bg, color: child.avatar.fg }}
+                  >
+                    {child.initial}
+                  </span>
+                  {child.name.split(" ")[0]}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              aria-pressed={allKidsSelected}
+              onClick={toggleAllKids}
+              className={`rounded-full border-[1.5px] px-4 py-1.5 text-[14px] font-bold ${
+                allKidsSelected
+                  ? "border-[#3F362E] bg-[#3F362E] text-white"
+                  : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
+              }`}
+            >
+              Toda la sala
+            </button>
+          </div>
+
+          {/* Secciones TIPO/DESCRIPCIÓN/FOTOS (Paso 3) */}
+        </div>
       </div>
     </div>
   );
