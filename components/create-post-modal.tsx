@@ -9,6 +9,14 @@ const allKidIds = roomKids.map((child) => child.id);
 const labelClass =
   "mb-[10px] text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
 
+const errorClass = "mt-1.5 text-[12px] font-bold text-[#D9583C]";
+
+type CreatePostErrors = {
+  kids?: string;
+  kinds?: string;
+  description?: string;
+};
+
 type PostKind =
   | "meal"
   | "nap"
@@ -40,8 +48,18 @@ export default function CreatePostModal({
   const [selectedKids, setSelectedKids] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<PostKind[]>([]);
   const [description, setDescription] = useState("");
+  const [errors, setErrors] = useState<CreatePostErrors>({});
 
   if (!open) return null;
+
+  const clearError = (field: keyof CreatePostErrors) => {
+    setErrors((current) => {
+      if (!(field in current)) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
 
   const toggleKid = (id: string) => {
     setSelectedKids((current) =>
@@ -49,12 +67,14 @@ export default function CreatePostModal({
         ? current.filter((kidId) => kidId !== id)
         : [...current, id],
     );
+    clearError("kids");
   };
 
   const toggleAllKids = () => {
     setSelectedKids((current) =>
       current.length === roomKids.length ? [] : [...allKidIds],
     );
+    clearError("kids");
   };
 
   const allKidsSelected = selectedKids.length === roomKids.length;
@@ -65,6 +85,31 @@ export default function CreatePostModal({
         ? current.filter((item) => item !== kind)
         : [...current, kind],
     );
+    clearError("kinds");
+  };
+
+  const resetForm = () => {
+    setSelectedKids([]);
+    setSelectedKinds([]);
+    setDescription("");
+    setErrors({});
+  };
+
+  const handlePublish = () => {
+    const nextErrors: CreatePostErrors = {};
+    if (selectedKids.length === 0) {
+      nextErrors.kids = "Elegí al menos un niño";
+    }
+    if (selectedKinds.length === 0) {
+      nextErrors.kinds = "Elegí al menos un tipo";
+    }
+    if (description.trim() === "") {
+      nextErrors.description = "Escribí una descripción";
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+    resetForm();
+    onPublish();
   };
 
   return (
@@ -91,7 +136,7 @@ export default function CreatePostModal({
           </span>
           <button
             type="button"
-            onClick={onPublish}
+            onClick={handlePublish}
             className="text-[15px] font-extrabold text-[#D9583C]"
           >
             Publicar
@@ -100,7 +145,9 @@ export default function CreatePostModal({
 
         <div className="px-[26px] py-6">
           <div className={labelClass}>PARA</div>
-          <div className="mb-[22px] flex flex-wrap gap-[9px]">
+          <div
+            className={`flex flex-wrap gap-[9px] ${errors.kids ? "mb-1.5" : "mb-[22px]"}`}
+          >
             {roomKids.map((child) => {
               const selected = selectedKids.includes(child.id);
               return (
@@ -138,9 +185,14 @@ export default function CreatePostModal({
               Toda la sala
             </button>
           </div>
+          {errors.kids && (
+            <div className={`${errorClass} mb-[22px]`}>{errors.kids}</div>
+          )}
 
           <div className={labelClass}>TIPO</div>
-          <div className="mb-[22px] flex flex-wrap gap-[9px]">
+          <div
+            className={`flex flex-wrap gap-[9px] ${errors.kinds ? "mb-1.5" : "mb-[22px]"}`}
+          >
             {postKinds.map((kind) => {
               const selected = selectedKinds.includes(kind.id);
               return (
@@ -163,14 +215,24 @@ export default function CreatePostModal({
               );
             })}
           </div>
+          {errors.kinds && (
+            <div className={`${errorClass} mb-[22px]`}>{errors.kinds}</div>
+          )}
 
           <div className={labelClass}>DESCRIPCIÓN</div>
           <textarea
             value={description}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(event) => {
+              setDescription(event.target.value);
+              clearError("description");
+            }}
             placeholder="Contá cómo le fue hoy…"
-            className="mb-[22px] min-h-[120px] w-full resize-y rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-3.5 text-[15px] leading-[1.5] text-[#3F362E] outline-none placeholder:text-[#B6A99B]"
+            aria-invalid={Boolean(errors.description)}
+            className={`${errors.description ? "mb-1.5" : "mb-[22px]"} min-h-[120px] w-full resize-y rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-3.5 text-[15px] leading-[1.5] text-[#3F362E] outline-none placeholder:text-[#B6A99B]`}
           />
+          {errors.description && (
+            <div className={`${errorClass} mb-[22px]`}>{errors.description}</div>
+          )}
 
           <div className={labelClass}>FOTOS</div>
           <div className="flex gap-3">
