@@ -1,6 +1,6 @@
 # SPEC 05 — Modal "Vincular padre" en `/kids/[id]`
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** SPEC 02
 > **Date:** 2026-10-03
 > **Objective:** Abrir el formulario de `vincular-padre.dc.html` como modal en `/kids/[id]` al pulsar "Vincular otro padre", con validación de nombre y email, y al enviar agregar un padre "pendiente" al mock del niño.
