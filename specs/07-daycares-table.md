@@ -1,6 +1,6 @@
 # SPEC 07 — Tabla `daycares` + seed
 
-> **Status:** Borrador
+> **Status:** Aprobado
 > **Depends on:** ninguna (primera tabla real de negocio; `public` vacío al iniciar)
 > **Date:** 2026-10-13
 > **Objective:** Crear la tabla raíz `daycares` en Supabase vía migración remota con RLS habilitado y 4 filas seed, incluyendo `Guardería Sala Soles`.
