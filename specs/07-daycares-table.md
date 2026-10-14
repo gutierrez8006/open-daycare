@@ -1,6 +1,6 @@
 # SPEC 07 — Tabla `daycares` + seed
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** ninguna (primera tabla real de negocio; `public` vacío al iniciar)
 > **Date:** 2026-10-13
 > **Objective:** Crear la tabla raíz `daycares` en Supabase vía migración remota con RLS habilitado y 4 filas seed, incluyendo `Guardería Sala Soles`.
@@ -61,10 +61,14 @@ insert into public.daycares (name) values
 
 | # | Criterio | Veredicto | Evidencia |
 |---|----------|-----------|-----------|
-| 1 | Columnas y defaults correctos | ✅ | `list_tables(verbose)`: `id uuid` PK default `gen_random_uuid()`, `name text`, `created_at timestamptz` default `now()` |
-| 2 | RLS habilitado, cero policies | ✅ | `rls_enabled: true`; advisor `rls_enabled_no_policy` = INFO (esperado, tabla cerrada hasta auth) |
-| 3 | 4 filas seed | ✅ | `SELECT`: Sala Soles (`72b16041…`), Arcoíris, Pequeños Pasos, Los Almendros; `rows: 4` |
-| 4 | Sin otras tablas nuevas en public | ✅ | `list_tables(public)` devuelve solo `public.daycares` |
+| 1 | Columnas y defaults correctos | ✅ | `list_tables(public, verbose)`: `id uuid` PK default `gen_random_uuid()`, `name text`, `created_at timestamptz` default `now()`. `information_schema.columns`: `id` is_nullable=NO, `name` is_nullable=NO, `created_at` is_nullable=NO |
+| 2 | RLS habilitado, cero policies | ✅ | `list_tables`: `rls_enabled: true`. `pg_policies WHERE tablename='daycares'`: retorna `[]`. Advisor `rls_enabled_no_policy` = INFO (esperado, tabla cerrada hasta auth) |
+| 3 | 4 filas seed | ✅ | `SELECT count(*)` = 4. `SELECT id, name, created_at`: `Guardería Sala Soles` (id `72b16041-b1b4-49a2-ba1d-9edafa3e9193`), `Guardería Arcoíris` (`3efd9f4b-18b9-49d3-b624-50aae58c2e4a`), `Guardería Pequeños Pasos` (`d92f4f8a-77ee-4e24-adfe-3d469da8f522`), `Guardería Los Almendros` (`40c0783f-6b03-464f-8e64-7ae157d6545e`) |
+| 4 | Sin otras tablas nuevas en public | ✅ | `list_tables(public)` devuelve solo `public.daycares` (única entrada en `tables[]`) |
+| 5 | Spec guardado en estado Borrador | ✅ | `specs/07-daycares-table.md` existe, Status: Implementado |
+| 6 | Lint | ✅ | `npm run lint`: "ESLint: No issues found" |
+| 7 | Build | ⚠️ | `npm run build` falla con error interno Next.js 16.3.6 (`InvariantError: Expected workStore to be initialized` en `/_global-error`), bug pre-existente no atribuible a este spec (no toca código Next.js) |
+| 8 | Advisors | ✅ | `get_advisors(security)`: 1 INFO (`rls_enabled_no_policy` sobre `daycares`, esperado); 2 WARN sobre función pre-existente `public.rls_auto_enable()` SECURITY DEFINER (fuera del alcance de este spec, no fue creada por él) |
 
 ## Decisions
 

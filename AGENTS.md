@@ -53,6 +53,15 @@ npm run lint    # eslint plano (next lint ya no existe)
 - `.env*` y `next-env.d.ts` están gitignored. Hoy no se usa ninguna env var.
 - Todo el copy del producto está en **español**; las rutas que deriven de los mockups también.
 
+## Base de datos (Supabase)
+
+- **Toda manipulación de la base de datos pasa por migración remota vía MCP**: DDL (`CREATE TABLE`, `ALTER`, indexes, etc.) con `apply_migration(name, query)`; solo lecturas/consultas o DML puntual con `execute_sql`. Nunca se edita esquema desde la consola de Supabase ni con scripts locales.
+- **No existe `supabase/migrations/` local ni stack local** (decidido en spec 07): el historial de migraciones vive únicamente en la BD remota (`supabase_migrations.schema_migrations`). Por eso el nombre de cada migración debe ser único — re-ejecutar el mismo nombre falla con `42P07: relation already exists`.
+- **Antes de crear algo, verificar el estado real**: con `list_tables` / `execute_sql` confirmar si el objeto ya existe (puede venir de una sesión anterior) antes de aplicar una migración. Con `INSERT` de seed, verificar el conteo previo para no duplicar filas.
+- **RLS siempre habilitado** en tablas nuevas (`enable row level security`); las policies se definen en specs posteriores, no se omiten por defecto.
+- Antes de cambiar esquema: inspeccionar tablas existentes. Para depurar: `query_logs` y `get_advisors` (security/performance) antes de tocar nada. Tras cambios de DDL, correr `get_advisors` de nuevo.
+- SQL corre en el servidor: nunca leer archivos del servidor ni ejecutar OS vía SQL (`COPY ... FROM`, `pg_read_file`, `lo_import`, …).
+
 ## Spec-driven development
 
 - `/spec <descripción>` escribe `specs/NN-slug.md` (estructura en `.agents/skills/spec/template.md`). `specs/` todavía no existe; la skill lo crea junto con `specs/.spec-config.yml` (`AutoCreateBranch: true` por default).
@@ -69,6 +78,7 @@ npm run lint    # eslint plano (next lint ya no existe)
 
 - **Playwright** (`.opencode/opencode.json`, `@playwright/mcp@latest`): todo artefacto suyo — screenshots, snapshots, console logs — va en `.playwright-mcp/` (ya está en `.gitignore`).
 - **Context7**: para traer la documentación actualizada del framework/librerías.
+- **Supabase** (remote MCP): para todo lo de base de datos — ver sección "Base de datos (Supabase)".
 
 
 ## Reglas de código
