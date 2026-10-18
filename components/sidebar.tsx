@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { session } from "@/data/mock";
 import CreatePostModal from "@/components/create-post-modal";
-import { signOutAction } from "@/app/(auth)/login/actions";
 
 type NavItem = {
   label: string;
@@ -113,10 +112,7 @@ function SidebarContent({
           <button
             type="button"
             title="Cerrar sesión"
-            onClick={() => {
-              onNavigate?.();
-              void signOutAction();
-            }}
+            onClick={onNavigate}
             className="relative flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-canvas text-muted-strong after:absolute after:-inset-1.5 after:content-['']"
           >
             <LogoutIcon />
