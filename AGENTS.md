@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Estado del proyecto
 
-Next.js 16.3.6 (App Router, React 19.2, TypeScript strict, Tailwind v4) scaffolteado con `create-next-app` y **prácticamente sin construir**: `app/page.tsx` sigue siendo el boilerplate de CNA y no hay rutas, componentes, tests ni capa de datos. `app/layout.tsx` es lo único modificado (ya usa `LayoutProps<"/">`).
+Next.js 16.3.6 (App Router, React 19.2, TypeScript strict, Tailwind v4) scaffolteado con `create-next-app` y **prácticamente sin construir**: `app/page.tsx` sigue siendo el boilerplate de CNA y no hay rutas, componentes ni tests. La única capa de datos es el cliente Supabase SSR (`utils/supabase/` + `proxy.ts`, ver "Acceso a datos"). `app/layout.tsx` es lo único modificado (ya usa `LayoutProps<"/">`).
 
 El producto (app de guardería: personal y familias) **solo existe como mockups** en `references/`. Empieza por ahí, no por el código.
 
@@ -50,7 +50,7 @@ npm run lint    # eslint plano (next lint ya no existe)
 
 - Alias `@/*` → raíz del repo.
 - Tailwind v4 sin `tailwind.config.js`: los tokens se declaran en `app/globals.css` con `@theme inline`.
-- `.env*` y `next-env.d.ts` están gitignored. Hoy no se usa ninguna env var.
+- `.env*` y `next-env.d.ts` están gitignored. Env vars activas: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (valores reales solo en `.env.local`, nunca commiteado; placeholders en `.env.template`).
 - Todo el copy del producto está en **español**; las rutas que deriven de los mockups también.
 
 ## Base de datos (Supabase)
@@ -61,6 +61,16 @@ npm run lint    # eslint plano (next lint ya no existe)
 - **RLS siempre habilitado** en tablas nuevas (`enable row level security`); las policies se definen en specs posteriores, no se omiten por defecto.
 - Antes de cambiar esquema: inspeccionar tablas existentes. Para depurar: `query_logs` y `get_advisors` (security/performance) antes de tocar nada. Tras cambios de DDL, correr `get_advisors` de nuevo.
 - SQL corre en el servidor: nunca leer archivos del servidor ni ejecutar OS vía SQL (`COPY ... FROM`, `pg_read_file`, `lo_import`, …).
+
+## Acceso a datos (Supabase SSR)
+
+- **Todo acceso a la BD desde la app pasa por los paquetes oficiales `@supabase/supabase-js` + `@supabase/ssr`**. No usar `fetch` directo a la API, ni ORMs, ni otro cliente.
+- Helpers (alias `@/*`):
+  - `utils/supabase/client.ts` → `createBrowserClient` — solo Client Components (`"use client"`).
+  - `utils/supabase/server.ts` → `createServerClient` (async, con `await cookies()`) — Server Components, Server Actions y Route Handlers.
+  - `utils/supabase/proxy.ts` (`updateSession`) + `proxy.ts` en raíz — refresco de sesión en cada request vía `getClaims()`. No añadir lógica entre `createServerClient` y `getClaims()`, y no borrar `getClaims()` (provoca logouts aleatorios).
+- No crear nuevos helpers de cliente Supabase fuera de `utils/supabase/`. No usar `service_role` en código de la app.
+- RLS manda: las queries se ejecutan como el usuario autenticado; si una query devuelve vacío inesperado, revisar policies antes de "arreglar" el código.
 
 ## Spec-driven development
 
