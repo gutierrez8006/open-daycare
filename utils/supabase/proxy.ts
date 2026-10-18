@@ -30,9 +30,37 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Do not run code between createServerClient and
-  // supabase.auth.getClaims(). A simple mistake could make it very hard to debug
+  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
-  await supabase.auth.getClaims();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+  const isPublicPath =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/activate-account") ||
+    pathname.startsWith("/auth");
+
+  if (!user && !isPublicPath) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    const redirectResponse = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) =>
+      redirectResponse.cookies.set(cookie),
+    );
+    return redirectResponse;
+  }
+
+  if (user && (pathname.startsWith("/login") || pathname.startsWith("/activate-account"))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    const redirectResponse = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) =>
+      redirectResponse.cookies.set(cookie),
+    );
+    return redirectResponse;
+  }
 
   return supabaseResponse;
 }
