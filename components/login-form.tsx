@@ -1,27 +1,23 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useActionState } from "react";
+import { loginAction } from "@/app/(auth)/login/actions";
 
 export default function LoginForm() {
-  const router = useRouter();
-  const [email, setEmail] = useState("caro@opendaycare.com");
-  const [password, setPassword] = useState("");
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    router.push("/");
-  }
+  const [state, formAction, pending] = useActionState(loginAction, {});
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form action={formAction}>
       <div className="mb-2 text-xs font-bold tracking-[.7px] text-muted-strong">
         EMAIL
       </div>
       <input
+        name="email"
         type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        required
+        autoComplete="email"
+        disabled={pending}
+        defaultValue="caro@opendaycare.com"
         className="mb-[18px] w-full rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-3.5 text-[15px] text-ink placeholder:text-[#B6A99B]"
       />
 
@@ -29,9 +25,12 @@ export default function LoginForm() {
         CONTRASEÑA
       </div>
       <input
+        name="password"
         type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        required
+        minLength={6}
+        autoComplete="current-password"
+        disabled={pending}
         placeholder="••••••••"
         className="mb-2.5 w-full rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-3.5 text-[15px] text-ink placeholder:text-[#B6A99B]"
       />
@@ -45,11 +44,21 @@ export default function LoginForm() {
         </a>
       </div>
 
+      {state?.error && (
+        <div
+          role="alert"
+          className="mb-3 rounded-[10px] border border-[#E0B4A6] bg-[#FCECE6] px-3 py-2 text-[13.5px] text-[#B0412A]"
+        >
+          {state.error}
+        </div>
+      )}
+
       <button
         type="submit"
-        className="w-full rounded-[15px] bg-gradient-to-b from-[#F4977E] to-[#EE8164] py-[15px] text-center font-extrabold text-[16px] text-white shadow-[0_10px_22px_-8px_rgba(238,129,100,.7)]"
+        disabled={pending}
+        className="w-full rounded-[15px] bg-gradient-to-b from-[#F4977E] to-[#EE8164] py-[15px] text-center font-extrabold text-[16px] text-white shadow-[0_10px_22px_-8px_rgba(238,129,100,.7)] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Iniciar sesión
+        {pending ? "Ingresando…" : "Iniciar sesión"}
       </button>
     </form>
   );
