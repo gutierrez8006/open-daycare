@@ -33,3 +33,11 @@ export async function loginAction(
   revalidatePath("/", "layout");
   redirect("/");
 }
+
+export async function signOutAction(): Promise<void> {
+  const supabase = await createClient();
+
+  await supabase.auth.signOut();
+
+  redirect("/login");
+}
