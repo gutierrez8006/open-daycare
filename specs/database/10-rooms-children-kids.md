@@ -68,11 +68,19 @@ Policies (misma guardería del `users.daycare_id`, lectura para todo `authentica
 create policy rooms_select_same_daycare on public.rooms
   for select to authenticated
   using (daycare_id = (select daycare_id from public.users where id = (select auth.uid())));
-create policy rooms_write_staff on public.rooms
-  for all to authenticated
+create policy rooms_write_insert_staff on public.rooms
+  for insert to authenticated
+  with check (daycare_id = (select daycare_id from public.users where id = (select auth.uid()))
+    and (select role from public.users where id = (select auth.uid())) in ('staff', 'admin'));
+create policy rooms_write_update_staff on public.rooms
+  for update to authenticated
   using (daycare_id = (select daycare_id from public.users where id = (select auth.uid()))
     and (select role from public.users where id = (select auth.uid())) in ('staff', 'admin'))
   with check (daycare_id = (select daycare_id from public.users where id = (select auth.uid()))
+    and (select role from public.users where id = (select auth.uid())) in ('staff', 'admin'));
+create policy rooms_write_delete_staff on public.rooms
+  for delete to authenticated
+  using (daycare_id = (select daycare_id from public.users where id = (select auth.uid()))
     and (select role from public.users where id = (select auth.uid())) in ('staff', 'admin'));
 
 -- children (pertenencia vía su room)
@@ -82,8 +90,14 @@ create policy children_select_same_daycare on public.children
     select 1 from public.rooms r
     join public.users u on u.daycare_id = r.daycare_id
     where r.id = children.room_id and u.id = (select auth.uid())));
-create policy children_write_staff on public.children
-  for all to authenticated
+create policy children_write_insert_staff on public.children
+  for insert to authenticated
+  with check (exists (
+    select 1 from public.rooms r
+    join public.users u on u.daycare_id = r.daycare_id
+    where r.id = children.room_id and u.id = (select auth.uid()) and u.role in ('staff', 'admin')));
+create policy children_write_update_staff on public.children
+  for update to authenticated
   using (exists (
     select 1 from public.rooms r
     join public.users u on u.daycare_id = r.daycare_id
@@ -92,7 +106,15 @@ create policy children_write_staff on public.children
     select 1 from public.rooms r
     join public.users u on u.daycare_id = r.daycare_id
     where r.id = children.room_id and u.id = (select auth.uid()) and u.role in ('staff', 'admin')));
+create policy children_write_delete_staff on public.children
+  for delete to authenticated
+  using (exists (
+    select 1 from public.rooms r
+    join public.users u on u.daycare_id = r.daycare_id
+    where r.id = children.room_id and u.id = (select auth.uid()) and u.role in ('staff', 'admin')));
 ```
+
+> **Variante aplicada (2026-10-18):** la escritura se define con una policy por acción (`insert`/`update`/`delete`, 6 en total) en lugar de un único `FOR ALL` por tabla. `CREATE POLICY` de Postgres no admite lista de comandos, y el `FOR ALL` original generaba el WARN `multiple_permissive_policies` (solape de SELECT con la policy de lectura). Mismo significado, criterio 14 limpio.
 
 Seed:
 
@@ -121,7 +143,7 @@ Convenciones:
 
 1. Verificar estado real: `list_tables(public)` muestra `daycares` + `users`; `pg_type` confirma que `child_status` no existe; `daycares` contiene `Guardería Sala Soles`. Deja el punto de partida confirmado.
 2. `apply_migration("create_child_status_enum")` con el `CREATE TYPE`. Deja el enum creado, sin tablas nuevas.
-3. `apply_migration("create_rooms_children_tables")` con los dos `CREATE TABLE` + `ENABLE ROW LEVEL SECURITY` + 4 policies. Deja las tablas creadas, vacías y cerradas por RLS.
+3. `apply_migration("create_rooms_children_tables")` con los dos `CREATE TABLE` + `ENABLE ROW LEVEL SECURITY` + 8 policies (2 SELECT + 6 de escritura, una por acción). Deja las tablas creadas, vacías y cerradas por RLS.
 4. `execute_sql` con el seed de 3 rooms (verificando conteo previo de `rooms` para no duplicar). Deja `Soles`, `Estrellas` y `Arcoíris` en Sala Soles y `children` vacía.
 5. Verificación DB: `SELECT` de columnas/defaults/FKs, `SELECT` del seed con JOIN a `daycares`, `get_advisors(security)` sin alertas nuevas atribuibles a estas tablas.
 6. Wirear el listado: `app/(app)/kids/page.tsx` (Server Component) trae rooms + children `active` con el cliente server y `components/kids-directory.tsx` agrupa por sala, deriva contadores y filtra por nombre en cliente. Verificación: `/kids` muestra 3 secciones con 0 niños y el buscador no rompe en vacío.
@@ -133,7 +155,7 @@ Convenciones:
 - [ ] El tipo `child_status` (`active`, `archived`) existe y ningún otro enum nuevo fue creado.
 - [ ] `public.rooms` existe con `id uuid PK default gen_random_uuid()`, `daycare_id uuid NOT NULL FK → daycares(id) ON DELETE RESTRICT`, `name text NOT NULL`, `created_at timestamptz NOT NULL default now()`.
 - [ ] `public.children` existe con `id uuid PK default gen_random_uuid()`, `room_id uuid NOT NULL FK → rooms(id) ON DELETE RESTRICT`, `full_name NOT NULL`, `birth_date NOT NULL`, `enrolled_at NOT NULL default current_date`, `medical_notes` nullable, `allergy_tags text[] NOT NULL default '{}'`, `photo_consent NOT NULL default true`, `status NOT NULL default 'active'`, `created_at`/`updated_at NOT NULL default now()`.
-- [ ] RLS habilitado en ambas tablas, con policies `rooms_select_same_daycare`, `rooms_write_staff`, `children_select_same_daycare`, `children_write_staff`.
+- [ ] RLS habilitado en ambas tablas, con policies `rooms_select_same_daycare` + `rooms_write_{insert,update,delete}_staff` y `children_select_same_daycare` + `children_write_{insert,update,delete}_staff` (8 en total, sin solape SELECT).
 - [ ] `SELECT` del seed devuelve 3 filas en `Guardería Sala Soles`: `Soles`, `Estrellas`, `Arcoíris`.
 - [ ] `SELECT count(*) FROM public.children` = 0.
 - [ ] `public` no contiene otra tabla nueva (solo `daycares` + `users` + `rooms` + `children`).
@@ -152,6 +174,7 @@ Convenciones:
 - **Yes:** las 3 salas cuelgan de `Guardería Sala Soles`. Nombres: `Soles` (exigida) + `Estrellas` y `Arcoíris` (propuestos por el agente, confirmados por el usuario).
 - **Yes:** `children` sin seed. La pantalla trabaja en vacío hasta el spec de CRUD.
 - **Yes:** policies de lectura y escritura definidas ahora, aunque la UI de este spec solo lee. Evita dejar la escritura abierta o sin definir hasta el CRUD.
+- **Yes:** escritura con una policy por acción (`insert`/`update`/`delete`) en lugar de `FOR ALL`. Postgres no admite lista de comandos en `CREATE POLICY` y el `FOR ALL` chocaba con el criterio 14 (WARN `multiple_permissive_policies`). Cambio acordado con el usuario durante la implementación.
 - **Yes:** `(select auth.uid())` en las policies. Descarta `auth.uid()` directo: evita el WARN `auth_rls_initplan` aceptado como riesgo en SPEC 08.
 - **Yes:** un solo spec para DB + lectura de `/kids` y `/kids/[id]`. Descarta partirlo en dos: el wireado es solo lectura y cabe sin superar las tres áreas.
 - **Yes:** guardado en `specs/database/`. Es un spec de base de datos con wireado UI, no un spec solo UI.
