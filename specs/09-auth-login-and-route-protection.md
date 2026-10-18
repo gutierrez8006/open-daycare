@@ -62,17 +62,35 @@ Convenciones:
 
 ## Acceptance criteria
 
-- [ ] Sin sesión, visitar `/` redirige a `/login`.
-- [ ] Sin sesión, visitar `/kids` y `/kids/[id]` redirige a `/login`.
-- [ ] Con credenciales inválidas, `/login` muestra error inline en español y no navega.
-- [ ] Con `juancarlos@google.com` + password válido, `/login` navega a `/` y recargar `/` mantiene la sesión.
-- [ ] Con sesión, visitar `/login` redirige a `/`.
-- [ ] Con sesión, visitar `/activate-account` redirige a `/`.
-- [ ] El botón "Cerrar sesión" del sidebar cierra la sesión y deja al usuario en `/login` (desktop y drawer móvil).
-- [ ] Tras logout, `/` vuelve a redirigir a `/login`.
-- [ ] El botón de submit se deshabilita mientras ingresa (`Ingresando…`) y los inputs exigen `email`/`password` no vacíos.
-- [ ] `/activate-account` no cambia visual ni funcionalmente (salvo heredar los rebotes del guard).
+- [x] Sin sesión, visitar `/` redirige a `/login`.
+- [x] Sin sesión, visitar `/kids` y `/kids/[id]` redirige a `/login`.
+- [x] Con credenciales inválidas, `/login` muestra error inline en español y no navega.
+- [x] Con `juancarlos@google.com` + password válido, `/login` navega a `/` y recargar `/` mantiene la sesión.
+- [x] Con sesión, visitar `/login` redirige a `/`.
+- [x] Con sesión, visitar `/activate-account` redirige a `/`.
+- [x] El botón "Cerrar sesión" del sidebar cierra la sesión y deja al usuario en `/login` (desktop y drawer móvil).
+- [x] Tras logout, `/` vuelve a redirigir a `/login`.
+- [x] El botón de submit se deshabilita mientras ingresa (`Ingresando…`) y los inputs exigen `email`/`password` no vacíos.
+- [x] `/activate-account` no cambia visual ni funcionalmente (salvo heredar los rebotes del guard).
 - [ ] `npm run lint` y `npm run build` pasan; sin `fetch` directo a la API de Supabase, sin `service_role`, sin `localStorage`/`sessionStorage` para la sesión.
+
+## Verification log
+
+| # | Criterion | Verdict | Evidence |
+|---|-----------|---------|----------|
+| 1 | Sin sesión, `/` redirige a `/login` | ✅ | Playwright: `browser_navigate('http://localhost:3000/')` → `http://localhost:3000/login`. Screenshot: `.playwright-mcp/criterion1-root.png` |
+| 2 | Sin sesión, `/kids` y `/kids/[id]` redirigen a `/login` | ✅ | Playwright: `/kids` → `/login`, `/kids/test-id` → `/login`. Screenshots: `.playwright-mcp/criterion2-kids.png`, `criterion2-kids-id.png` |
+| 3 | Credenciales inválidas muestran error inline en español | ✅ | Playwright: tras submit con `invalid@test.com`/`wrongpassword`, URL sigue en `/login`, `role="alert"` muestra "Credenciales inválidas. Revisá tu email y contraseña." Código: `components/login-form.tsx:14-16` (useActionState), `app/(auth)/login/actions.ts:18-19` (error message). Screenshot: `.playwright-mcp/criterion3-invalid.png` |
+| 4 | Login válido navega a `/` y persiste en reload | ✅ | Playwright: login con `juancarlos@google.com`/`Abc123456@` → URL `http://localhost:3000/`, reload mantiene sesión. Screenshot: `.playwright-mcp/criterion4-after-login.png` |
+| 5 | Con sesión, `/login` redirige a `/` | ✅ | Playwright: tras login, `browser_navigate('/login')` → `http://localhost:3000/`. Screenshot: `.playwright-mcp/criterion5-login-redirect.png` |
+| 6 | Con sesión, `/activate-account` redirige a `/` | ✅ | Playwright: tras login, `browser_navigate('/activate-account')` → `http://localhost:3000/`. Screenshot: `.playwright-mcp/criterion6-activate-redirect.png` |
+| 7 | Botón "Cerrar sesión" cierra sesión (desktop + mobile) | ✅ | Playwright desktop: click en `button[ref=f25e37]` → `/login`. Playwright mobile (375×812): hamburger abre drawer, click en `button[ref=f28e141]` → `/login`. Screenshots: `.playwright-mcp/criterion7-after-logout.png`, `criterion7-mobile-logout.png` |
+| 8 | Tras logout, `/` redirige a `/login` | ✅ | Playwright: tras logout, `browser_navigate('/')` → `/login`. Proxy code: `utils/supabase/proxy.ts:45-53` (guard sin usuario). |
+| 9 | Submit button se deshabilita + inputs required | ✅ | Código: `components/login-form.tsx:28` (`disabled={pending}`), línea 29 (`{pending ? "Ingresando…" : "Iniciar sesión"}`). HTML5: `input[name=email]` tiene `required` + `type="email"`, `input[name=password]` tiene `required` + `minLength=6`. Verificado con `browser_evaluate` que retorna `{ emailRequired: true, pwdRequired: true, pwdMinLength: 6, emailType: "email" }`. |
+| 10 | `/activate-account` sin cambios visuales | ✅ | Playwright: sin sesión, `/activate-account` permanece en la página (public path en proxy). Snapshot muestra el formulario mock intacto (código invitación `7K4P9`, email `lucia.fernandez@gmail.com`). Screenshot: `.playwright-mcp/criterion10-activate-page.png` |
+| 11 | `npm run lint` pasa; sin patrones prohibidos | ⚠️ | `npm run lint` ✅ (ESLint: No issues found). `npm run build` ❌ falla con error pre-existente de Next.js 16.3.6: `Invariant: Expected workStore to be initialized` en `/_global-error` (no relacionado con cambios de SPEC 09). Sin `fetch` directo a Supabase API (grep: 0 matches), sin `service_role` (grep: 0 matches), sin `localStorage`/`sessionStorage` (grep: 0 matches). |
+
+**Nota:** El build falla debido a un bug conocido de Next.js 16.3.6 (`/_global-error` prerender error). Este error es pre-existente y no fue introducido por los cambios de SPEC 09. El dev server funciona correctamente y todas las funcionalidades verificadas con Playwright operan como se espera.
 
 ## Decisions
 

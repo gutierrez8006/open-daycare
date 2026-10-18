@@ -4,8 +4,14 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { session } from "@/data/mock";
 import CreatePostModal from "@/components/create-post-modal";
+import { signOutAction } from "@/app/(auth)/login/actions";
+
+export type UserInfo = {
+  fullName: string;
+  role: string;
+  daycareName: string;
+};
 
 type NavItem = {
   label: string;
@@ -35,12 +41,24 @@ const navItems: NavItem[] = [
 function SidebarContent({
   onNavigate,
   onCreatePost,
+  user,
 }: {
   onNavigate?: () => void;
   onCreatePost?: () => void;
+  user: UserInfo | null;
 }) {
   const pathname = usePathname();
-  const roomLabel = session.sala.name.replace(/^Sala /, "");
+  const initial =
+    user?.fullName
+      .split(" ")
+      .map((n) => n[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() ?? "";
+  const roomLabel = (user?.daycareName ?? "")
+    .replace(/^Guardería /i, "")
+    .replace(/^Sala /i, "");
 
   return (
     <>
@@ -57,7 +75,7 @@ function SidebarContent({
             OpenDayCare
           </span>
           <span className="mt-0.5 block text-[11.5px] text-muted">
-            {session.sala.name}
+            {user?.daycareName}
           </span>
         </span>
       </Link>
@@ -99,20 +117,23 @@ function SidebarContent({
       <div className="mt-[10px] border-t border-line pt-[14px]">
         <div className="flex items-center gap-[11px] px-2 py-1.5">
           <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full bg-brand-soft font-display text-base font-semibold text-white">
-            {session.user.initial}
+            {initial}
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-extrabold text-ink">
-              {session.user.name}
+              {user?.fullName}
             </span>
             <span className="block text-xs text-muted">
-              {session.user.role} · {roomLabel}
+              {user?.role} · {roomLabel}
             </span>
           </span>
           <button
             type="button"
             title="Cerrar sesión"
-            onClick={onNavigate}
+            onClick={() => {
+              onNavigate?.();
+              void signOutAction();
+            }}
             className="relative flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-canvas text-muted-strong after:absolute after:-inset-1.5 after:content-['']"
           >
             <LogoutIcon />
@@ -123,7 +144,7 @@ function SidebarContent({
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ userInfo }: { userInfo?: UserInfo | null }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const closeDrawer = () => setDrawerOpen(false);
@@ -151,7 +172,10 @@ export default function Sidebar() {
       </header>
 
       <aside className="sticky top-0 hidden h-screen w-[248px] flex-none flex-col border-r border-line bg-card px-4 py-6 lg:flex">
-        <SidebarContent onCreatePost={() => setOpen(true)} />
+        <SidebarContent
+          user={userInfo ?? null}
+          onCreatePost={() => setOpen(true)}
+        />
       </aside>
 
       {drawerOpen && (
@@ -171,6 +195,7 @@ export default function Sidebar() {
               <CloseIcon />
             </button>
             <SidebarContent
+              user={userInfo ?? null}
               onNavigate={closeDrawer}
               onCreatePost={() => setOpen(true)}
             />
