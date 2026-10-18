@@ -19,7 +19,7 @@ SPEC 02 dejó `/kids` y `/kids/[id]` como pantallas estáticas con `data/childre
 - `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` en ambas tablas.
 - Policies RLS en ambas: `SELECT` para `authenticated` de la misma guardería; `INSERT`/`UPDATE`/`DELETE` solo `staff`/`admin` de la misma guardería.
 - Seed vía `execute_sql`: 3 rooms en `Guardería Sala Soles` — `Soles`, `Estrellas`, `Arcoíris`. Cero filas en `children`.
-- `app/(app)/kids/page.tsx` + `components/kids-directory.tsx`: leen rooms y children reales vía `utils/supabase/server.ts`. Solo `status = 'active'`, orden por `full_name`. Tres secciones por sala con contador derivado, total 0. Buscador cliente por nombre (NFD, como hoy).
+- `app/(app)/kids/page.tsx` + `components/kids-directory.tsx`: leen children reales vía `utils/supabase/server.ts`. Solo `status = 'active'`, orden por `full_name`. Lista única con separador = nombre del daycare actual (mayúsculas) + contador total derivado. Buscador cliente por nombre (NFD, como hoy).
 - `app/(app)/kids/[id]/page.tsx` + `components/kid-profile.tsx`: leen el niño real por `id` (JOIN rooms). `notFound()` si no existe o no es `active`. Banner de alergias solo si `medical_notes`. Card PADRES vacía, manteniendo el link "Vincular otro padre".
 - Verificación con `list_tables`, `SELECT` en `pg_type`/`rooms`/`children` y `get_advisors`.
 
@@ -146,7 +146,7 @@ Convenciones:
 3. `apply_migration("create_rooms_children_tables")` con los dos `CREATE TABLE` + `ENABLE ROW LEVEL SECURITY` + 8 policies (2 SELECT + 6 de escritura, una por acción). Deja las tablas creadas, vacías y cerradas por RLS.
 4. `execute_sql` con el seed de 3 rooms (verificando conteo previo de `rooms` para no duplicar). Deja `Soles`, `Estrellas` y `Arcoíris` en Sala Soles y `children` vacía.
 5. Verificación DB: `SELECT` de columnas/defaults/FKs, `SELECT` del seed con JOIN a `daycares`, `get_advisors(security)` sin alertas nuevas atribuibles a estas tablas.
-6. Wirear el listado: `app/(app)/kids/page.tsx` (Server Component) trae rooms + children `active` con el cliente server y `components/kids-directory.tsx` agrupa por sala, deriva contadores y filtra por nombre en cliente. Verificación: `/kids` muestra 3 secciones con 0 niños y el buscador no rompe en vacío.
+6. Wirear el listado: `app/(app)/kids/page.tsx` (Server Component) trae children `active` y el nombre del daycare actual (`utils/current-daycare.ts`) con el cliente server, y `components/kids-directory.tsx` renderiza una lista única con separador = nombre del daycare + contador total, filtrando por nombre en cliente. Verificación: `/kids` muestra el separador con el nombre del daycare y contador 0, y el buscador no rompe en vacío.
 7. Wirear el perfil: `app/(app)/kids/[id]/page.tsx` trae el niño por `id` con su room; `notFound()` si no existe, es de otro daycare o no es `active`. Verificación: URL manual de un `id` inexistente → 404.
 8. Verificación final: `npm run lint` + `npm run build` y comparación Playwright contra `ninos.dc.html` / `perfil-nino.dc.html` en estado vacío. Verificación: ambos pasan, sin `fetch` directo ni claves nuevas.
 
@@ -159,7 +159,7 @@ Convenciones:
 - [ ] `SELECT` del seed devuelve 3 filas en `Guardería Sala Soles`: `Soles`, `Estrellas`, `Arcoíris`.
 - [ ] `SELECT count(*) FROM public.children` = 0.
 - [ ] `public` no contiene otra tabla nueva (solo `daycares` + `users` + `rooms` + `children`).
-- [ ] `/kids` muestra las 3 secciones de sala con contador 0 y un total de 0 niños, sin datos de `data/children.ts`.
+- [ ] `/kids` muestra la lista única con separador = nombre del daycare actual y contador 0, sin datos de `data/children.ts`.
 - [ ] El buscador filtra por nombre ignorando mayúsculas y acentos y no falla con la lista vacía.
 - [ ] `/kids/<id>` inexistente o no `active` responde 404.
 - [ ] El perfil muestra nombre, edad derivada, sala, ingreso, badges de `allergy_tags` y banner solo si `medical_notes` existe.
@@ -181,6 +181,8 @@ Convenciones:
 - **No:** `parent_children` en este spec. El perfil muestra PADRES vacío hasta su spec propio.
 - **No:** crear niños desde `AddKidModal` en este spec. El modal sigue mock (SPEC 04).
 - **No:** mostrar `archived` en `/kids`. Solo `active`, ordenado por `full_name`.
+- **No:** agrupar `/kids` por salas. Se pidió lista única (decisión del usuario en la implementación) en lugar de las 3 secciones originales del plan; las salas siguen existiendo en DB y la agrupación queda para un spec futuro si se retoma.
+- **Yes:** separador con el nombre del daycare actual resuelto en `utils/current-daycare.ts` (helper `cache()` compartido por `app/(app)/layout.tsx` y la página). Descarta query duplicada en la page y descarta el literal "TODOS LOS NIÑOS" (decisión del usuario en la implementación).
 
 ## Risks
 

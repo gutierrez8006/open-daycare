@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { children } from "@/data/children";
-import KidCard from "@/components/kid-card";
+import KidCard, { type KidListItem } from "@/components/kid-card";
 
 function normalize(value: string): string {
   return value
@@ -12,14 +11,20 @@ function normalize(value: string): string {
     .trim();
 }
 
-export default function KidsDirectory() {
+export default function KidsDirectory({
+  items,
+  daycareName,
+}: {
+  items: KidListItem[];
+  daycareName: string;
+}) {
   const [query, setQuery] = useState("");
 
   const filteredChildren = useMemo(() => {
     const normalizedQuery = normalize(query);
-    if (!normalizedQuery) return children;
-    return children.filter((child) => normalize(child.name).includes(normalizedQuery));
-  }, [query]);
+    if (!normalizedQuery) return items;
+    return items.filter((child) => normalize(child.full_name).includes(normalizedQuery));
+  }, [query, items]);
 
   return (
     <>
@@ -36,15 +41,15 @@ export default function KidsDirectory() {
 
       <div className="mb-[14px] flex items-center gap-3">
         <span className="text-[12.5px] font-extrabold tracking-[.8px] text-ink">
-          SALA SOLES
+          {(daycareName || "Niños").toUpperCase()}
         </span>
-        <span className="text-[13px] text-muted">{children.length} niños</span>
+        <span className="text-[13px] text-muted">{items.length} niños</span>
         <span className="h-px flex-1 bg-[#E7DAC8]" />
       </div>
 
       {filteredChildren.length === 0 ? (
         <p className="py-8 text-center text-[14.5px] text-muted">
-          No encontramos niños con ese nombre.
+          {query ? "No encontramos niños con ese nombre." : "Todavía no hay niños inscriptos."}
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-[14px] md:grid-cols-2">

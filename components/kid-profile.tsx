@@ -1,8 +1,44 @@
 import Link from "next/link";
-import type { Child } from "@/data/children";
+import {
+  ageFromBirthDate,
+  allergyBadge,
+  avatarFor,
+} from "@/components/kid-card";
 import KidParentsCard from "@/components/kid-parents-card";
 
-export default function KidProfile({ child }: { child: Child }) {
+export type KidProfileData = {
+  id: string;
+  fullName: string;
+  birthDate: string;
+  enrolledAt: string;
+  roomName: string;
+  allergyTags: string[];
+  medicalNotes: string | null;
+};
+
+function formatBirthDate(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("es-AR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatEnrolledAt(iso: string): string {
+  const [year, month] = iso.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("es-AR", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export default function KidProfile({ child }: { child: KidProfileData }) {
+  const age = ageFromBirthDate(child.birthDate);
+  const avatar = avatarFor(child.id);
+  const initial = child.fullName.trim().charAt(0).toUpperCase();
+  const hasNotes = Boolean(child.medicalNotes?.trim());
+
   return (
     <div className="mx-auto w-full max-w-[820px] px-10 pb-20 pt-[34px] [line-height:normal]">
       <Link
@@ -19,19 +55,35 @@ export default function KidProfile({ child }: { child: Child }) {
             <div
               className="flex h-[84px] w-[84px] flex-none items-center justify-center rounded-full font-display text-[34px] font-semibold"
               style={{
-                backgroundColor: child.avatar.bg,
-                color: child.avatar.fg,
+                backgroundColor: avatar.bg,
+                color: avatar.fg,
               }}
             >
-              {child.initial}
+              {initial}
             </div>
             <div className="min-w-0 flex-1 basis-[160px]">
               <h1 className="font-display text-[28px] font-semibold text-ink">
-                {child.name}
+                {child.fullName}
               </h1>
               <p className="mt-[3px] text-[15px] text-muted-strong">
-                {child.ageYears} años · Sala {child.room}
+                {age} {age === 1 ? "año" : "años"} · Sala {child.roomName}
               </p>
+              {child.allergyTags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {child.allergyTags.map((tag) => {
+                    const badge = allergyBadge(tag);
+                    return (
+                      <span
+                        key={tag}
+                        className="rounded-full px-[9px] py-[5px] text-[11px] font-extrabold"
+                        style={{ backgroundColor: badge.bg, color: badge.fg }}
+                      >
+                        {badge.label}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <a
               href="#"
@@ -41,7 +93,7 @@ export default function KidProfile({ child }: { child: Child }) {
             </a>
           </div>
 
-          {child.allergyNotes && (
+          {hasNotes && (
             <div className="flex gap-[14px] rounded-[16px] bg-[#FBDAD6] px-[18px] py-4">
               <div className="flex h-10 w-10 flex-none items-center justify-center rounded-[11px] bg-[#F4A8A0]">
                 <AlertIcon />
@@ -51,16 +103,19 @@ export default function KidProfile({ child }: { child: Child }) {
                   Alergias y notas
                 </div>
                 <div className="text-[14.5px] leading-[1.5] text-[#B25249]">
-                  {child.allergyNotes}
+                  {child.medicalNotes}
                 </div>
               </div>
             </div>
           )}
 
           <div className="overflow-hidden rounded-[16px] border border-line bg-card">
-            <ProfileRow label="Fecha de nacimiento" value={child.birthDate} />
-            <ProfileRow label="Sala" value={child.room} />
-            <ProfileRow label="Ingreso" value={child.joined} />
+            <ProfileRow
+              label="Fecha de nacimiento"
+              value={formatBirthDate(child.birthDate)}
+            />
+            <ProfileRow label="Sala" value={child.roomName} />
+            <ProfileRow label="Ingreso" value={formatEnrolledAt(child.enrolledAt)} />
           </div>
         </div>
 
@@ -73,11 +128,7 @@ export default function KidProfile({ child }: { child: Child }) {
             Resumen del día
           </a>
 
-          <KidParentsCard
-            childId={child.id}
-            childName={child.name}
-            initialParents={child.parents}
-          />
+          <KidParentsCard childId={child.id} childName={child.fullName} initialParents={[]} />
         </div>
       </div>
     </div>
@@ -144,13 +195,13 @@ function SunIcon() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="#fff"
-      strokeWidth="2"
+      strokeWidth="2.2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
       <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4-1.4M4.9 19.1l1.4-1.4M19.1 4.9l-1.4 1.4M4.9 4.9l1.4 1.4M17.7 17.7l-1.4-1.4" />
     </svg>
   );
 }
