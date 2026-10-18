@@ -64,7 +64,8 @@ npm run lint    # eslint plano (next lint ya no existe)
 
 ## Spec-driven development
 
-- `/spec <descripción>` escribe `specs/NN-slug.md` (estructura en `.agents/skills/spec/template.md`). `specs/` todavía no existe; la skill lo crea junto con `specs/.spec-config.yml` (`AutoCreateBranch: true` por default).
+- `/spec <descripción>` escribe `specs/NN-slug.md` (estructura en `.agents/skills/spec/template.md`). Si el spec es de base de datos (tablas, enums, migraciones, RLS, seeds), va en `specs/database/NN-slug.md`. La numeración `NN` es global y correlativa en todo `specs/`.
+- `/spec` y `/spec-impl` resuelven el slug en `specs/` o `specs/database/` (p. ej. `/spec-impl 08-users-table` encuentra `specs/database/08-users-table.md` sin necesidad de prefijo).
 - `/spec-impl NN-slug` exige que el estado del spec signifique **"Approved"/"Aprobado"**; si no, se detiene. Crea la rama `spec-NN-slug` e implementa paso a paso, pausando para revisar el diff.
 - Nunca commitees automáticamente: el commit es decisión del usuario. Terminada la implementación, se verifica la lista de criterios de aceptación y recién ahí se cambia el estado a "Implemented".
 - Ambas skills están pineadas en `skills-lock.json` (origen `klerith/fernando-skills`); no las edites a mano.
@@ -72,7 +73,7 @@ npm run lint    # eslint plano (next lint ya no existe)
 
 ## Agents
 
-- **spec-verifier** (`.opencode/agents/spec-verifier.md`): verifica, corrige y marca los criterios de aceptación de `specs/*.md`. Usa Context7 para APIs de Next.js y Playwright para verificación visual. Corre `npm run lint` y `npm run build`, compara screenshots contra mockups, y actualiza los checkboxes del spec con evidencia concreta. No commitea.
+- **spec-verifier** (`.opencode/agents/spec-verifier.md`): verifica, corrige y marca los criterios de aceptación de `specs/**/*.md` (incluye `specs/database/`). Usa Context7 para APIs de Next.js y Playwright para verificación visual. Corre `npm run lint` y `npm run build`, compara screenshots contra mockups, y actualiza los checkboxes del spec con evidencia concreta. No commitea.
 
 ## MCPs
 
