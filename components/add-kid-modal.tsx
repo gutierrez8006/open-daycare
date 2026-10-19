@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { children } from "@/data/children";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { createKid } from "@/app/(app)/kids/actions";
 
-const rooms = [...new Set(children.map((child) => child.room))];
+export type AddKidRoom = {
+  id: string;
+  name: string;
+};
 
 const labelClass = "mb-2 text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
 const inputClass =
@@ -12,21 +15,31 @@ const errorClass = "mt-1.5 text-[12px] font-bold text-[#D9583C]";
 
 const BIRTH_DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 
-const isValidBirthDate = (value: string): boolean => {
-  if (!BIRTH_DATE_PATTERN.test(value)) return false;
+const birthDateError = (value: string): string | null => {
+  if (!BIRTH_DATE_PATTERN.test(value)) {
+    return "Usa una fecha válida (dd/mm/aaaa)";
+  }
   const [day, month, year] = value.split("/").map(Number);
   const date = new Date(year, month - 1, day);
-  return (
+  const isRealCalendarDate =
     date.getFullYear() === year &&
     date.getMonth() === month - 1 &&
-    date.getDate() === day
-  );
+    date.getDate() === day;
+  if (!isRealCalendarDate) {
+    return "Usa una fecha válida (dd/mm/aaaa)";
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (date.getTime() > today.getTime()) {
+    return "La fecha de nacimiento no puede ser futura";
+  }
+  return null;
 };
 
 type AddKidForm = {
   fullName: string;
   birthDate: string;
-  room: string;
+  roomId: string;
   allergies: string;
   medicalNotes: string;
 };
@@ -36,18 +49,20 @@ type AddKidErrors = {
   birthDate?: string;
 };
 
-const initialForm: AddKidForm = {
+const buildInitialForm = (rooms: AddKidRoom[]): AddKidForm => ({
   fullName: "",
   birthDate: "",
-  room: rooms[0] ?? "Soles",
+  roomId: rooms[0]?.id ?? "",
   allergies: "",
   medicalNotes: "",
-};
+});
 
-export default function AddKidModal() {
+export default function AddKidModal({ rooms }: { rooms: AddKidRoom[] }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<AddKidForm>(initialForm);
+  const [form, setForm] = useState<AddKidForm>(() => buildInitialForm(rooms));
   const [errors, setErrors] = useState<AddKidErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const setField = (field: keyof AddKidForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -62,6 +77,7 @@ export default function AddKidModal() {
   const closeModal = useCallback(() => {
     setOpen(false);
     setErrors({});
+    setFormError(null);
   }, []);
 
   useEffect(() => {
@@ -86,14 +102,32 @@ export default function AddKidModal() {
     if (form.fullName.trim() === "") {
       nextErrors.fullName = "Ingresa el nombre completo";
     }
-    if (!isValidBirthDate(form.birthDate)) {
-      nextErrors.birthDate = "Usa una fecha válida (dd/mm/aaaa)";
+    const dateError = birthDateError(form.birthDate);
+    if (dateError) {
+      nextErrors.birthDate = dateError;
     }
     setErrors(nextErrors);
+    setFormError(null);
     if (Object.keys(nextErrors).length > 0) return;
-    setOpen(false);
-    setForm(initialForm);
-    setErrors({});
+
+    startTransition(async () => {
+      const result = await createKid({
+        fullName: form.fullName,
+        birthDate: form.birthDate,
+        roomId: form.roomId,
+        allergies: form.allergies,
+        medicalNotes: form.medicalNotes,
+      });
+
+      if (!result.ok) {
+        setFormError(result.error);
+        return;
+      }
+
+      setOpen(false);
+      setForm(buildInitialForm(rooms));
+      setErrors({});
+    });
   };
 
   return (
@@ -132,12 +166,21 @@ export default function AddKidModal() {
               <button
                 type="button"
                 onClick={handleSave}
-                className="text-[15px] font-extrabold text-[#D9583C]"
+                disabled={isPending}
+                className="text-[15px] font-extrabold text-[#D9583C] disabled:opacity-50"
               >
                 Guardar
               </button>
             </div>
             <div className="px-[26px] py-6">
+              {formError && (
+                <div
+                  role="alert"
+                  className="mb-[18px] rounded-[14px] border border-[#F0C4B8] bg-[#FBE3DB] px-4 py-3 text-[13px] font-bold text-[#D9583C]"
+                >
+                  {formError}
+                </div>
+              )}
               <div className="mb-[18px]">
                 <div className={labelClass}>NOMBRE COMPLETO</div>
                 <input
@@ -170,13 +213,13 @@ export default function AddKidModal() {
                   <div className="relative">
                     <select
                       aria-label="Sala"
-                      value={form.room}
-                      onChange={(event) => setField("room", event.target.value)}
+                      value={form.roomId}
+                      onChange={(event) => setField("roomId", event.target.value)}
                       className={`${inputClass} appearance-none pr-10 font-bold`}
                     >
                       {rooms.map((room) => (
-                        <option key={room} value={room}>
-                          {room}
+                        <option key={room.id} value={room.id}>
+                          {room.name}
                         </option>
                       ))}
                     </select>
