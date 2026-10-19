@@ -43,7 +43,9 @@ export default function KidsDirectory({
         <span className="text-[12.5px] font-extrabold tracking-[.8px] text-ink">
           {(daycareName || "Niños").toUpperCase()}
         </span>
-        <span className="text-[13px] text-muted">{items.length} niños</span>
+        <span className="text-[13px] text-muted">
+          {items.length} {items.length === 1 ? "niño" : "niños"}
+        </span>
         <span className="h-px flex-1 bg-[#E7DAC8]" />
       </div>
 

@@ -18,11 +18,13 @@ export type KidProfileData = {
 
 function formatBirthDate(iso: string): string {
   const [year, month, day] = iso.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString("es-AR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return new Date(year, month - 1, day)
+    .toLocaleDateString("es-AR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+    .replace(/ de /g, " ");
 }
 
 function formatEnrolledAt(iso: string): string {
