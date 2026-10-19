@@ -20,14 +20,15 @@ SPEC 05 dejó el modal "Vincular padre" como mock en memoria (padre `pending` ag
 - Reemplazo de la policy de lectura de `children` del SPEC 10: `staff`/`admin` siguen viendo todos los niños de su daycare; un `parent` ve solo los niños vinculados en `parent_children`. Ídem `rooms`.
 - RPC `public.get_invitation_preview(p_code text)` (`SECURITY DEFINER`, `grant execute to anon`): devuelve `child_name`, `room_name`, `daycare_name`, `email`, `expires_at` solo si el código está `pending` y sin vencer. RPC `public.accept_invitation(p_code text)` (`SECURITY DEFINER`, `grant execute to authenticated`): valida código vigente + email del JWT, crea el vínculo e invalida la invitación.
 - Trigger `AFTER INSERT` en `auth.users` (`handle_new_parent_user`, `SECURITY DEFINER`): si el signup trae `invitation_code` en `raw_user_meta_data`, valida la invitación pendiente vigente con email coincidente y crea la fila en `public.users` (`role='parent'`, `daycare_id` derivado del niño, `full_name` de la invitación) o falla atómicamente si el código no sirve. El rol nunca se toma de metadata.
-- Dependencia `resend` + `utils/email/invitations.ts`: cliente Resend (lazy) y `sendInvitationEmail({ to, parentName, childName, code, expiresAt, activationUrl })` con plantilla HTML de la paleta de la app y fallback de texto plano.
+- Dependencia `resend` + `utils/email/invitations.ts`: cliente Resend (lazy) y `sendInvitationEmail({ to, parentName, childName, code, expiresAt, activationUrl })` con plantilla HTML de la paleta de la app y fallback de texto plano. El remitente sale de `RESEND_FROM_EMAIL`, nunca hardcodeado.
+- Dominio base del link de activación desde `NEXT_PUBLIC_APP_URL` (`http://localhost:3000` en dev, el dominio real en producción), con fallback al `origin` del request. Ningún dominio escrito en el código.
 - `app/(app)/kids/[id]/actions.ts` (`"use server"`): `createInvitation({ childId, fullName, email, relationship })` → valida, exige `staff`/`admin`, cancela invitaciones pendientes previas del mismo `child_id`+`email`, genera código único de 5 caracteres, inserta la invitación, envía el email y, si el envío falla, marca `cancelled` y devuelve error.
 - `components/link-parent-modal.tsx`: pasa a flujo servidor (`useTransition` + `router.refresh()`), deja de generar el código en el cliente y muestra el código real en un estado de éxito.
 - `components/kid-parents-card.tsx`: deja de importar `data/children.ts`; recibe `parents` reales y `canInvite` por props.
 - `app/(app)/kids/[id]/page.tsx`: lee `parent_children` + `users` (vinculados, `ACTIVA`) y `invitations` pendientes del niño (`PENDIENTE`), resuelve el rol del usuario y pasa `canInvite`.
 - `app/(auth)/activate-account/page.tsx` + `components/activate-account-form.tsx` + `app/(auth)/activate-account/actions.ts`: `/activate-account?code=XXXXX` real, con estado inválido/vencido, email prellenado y `activateAccountAction`.
 - Aviso de éxito en `/login?activated=1`.
-- `.env.template`: placeholders `RESEND_API_KEY` y `RESEND_FROM_EMAIL`.
+- `.env.template`: placeholders `RESEND_API_KEY`, `RESEND_FROM_EMAIL` y `NEXT_PUBLIC_APP_URL` (remitente y dominio base configurables por entorno; el paso a producción no toca código).
 
 **Out of scope (for future specs):**
 
@@ -210,9 +211,10 @@ type InvitationEmail = {
   childName: string;     // children.full_name
   code: string;          // 5 chars [A-Z2-9] sin ambiguos
   expiresAt: Date;       // +7 días
-  activationUrl: string; // `${origin}/activate-account?code=${code}`
+  activationUrl: string; // `${NEXT_PUBLIC_APP_URL}/activate-account?code=${code}`
 };
 // sendInvitationEmail(payload): Promise<{ ok: true } | { ok: false; error: string }>
+// remitente: process.env.RESEND_FROM_EMAIL (sin valor por defecto en código)
 
 // app/(app)/kids/[id]/actions.ts ("use server")
 type CreateInvitationInput = {
@@ -238,19 +240,29 @@ type ActivateState = { error?: string };
 // inputs del form: code (hidden/readonly), email, password, authorized (checkbox)
 ```
 
+Variables de entorno (todas server-side salvo la del link, que se usa en el server igual):
+
+| Variable | Dev | Producción | Uso |
+| --- | --- | --- | --- |
+| `RESEND_API_KEY` | key de Resend | key de Resend de producción | cliente Resend |
+| `RESEND_FROM_EMAIL` | `onboarding@resend.dev` | `OpenDayCare <invitaciones@tudominio.com>` | remitente del correo |
+| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | `https://app.tudominio.com` | base del link de activación |
+
+Sin dominio hardcodeado: pasar a producción es cambiar `RESEND_FROM_EMAIL` y `NEXT_PUBLIC_APP_URL`. Si `NEXT_PUBLIC_APP_URL` falta, el action cae al `origin` del request; si falta `RESEND_FROM_EMAIL`, `sendInvitationEmail` devuelve `{ ok: false }` en vez de mandar con un remitente inválido.
+
 Convenciones: código en inglés, copy en español; los valores de `relationship` son los del enum de Postgres y la traducción (`Mamá`/`Papá`/`Tutor/a`) vive en la UI; `data/children.ts` deja de ser la fuente de padres y se conserva como referencia.
 
 ## Implementation plan
 
-1. Prerequisitos manuales (fuera del repo): cuenta Resend con API key y remitente `onboarding@resend.dev`; en el Dashboard de Supabase, Auth → "Confirm email" desactivado y password mínimo 6. Verificación: un signup manual de prueba con email+password devuelve sesión inmediata sin correo de Supabase.
-2. `npm install resend` y `.env.template`: `RESEND_API_KEY=` y `RESEND_FROM_EMAIL=onboarding@resend.dev` (valores reales en `.env`, gitignored). Verificación: `npx tsc --noEmit` sin cambios de comportamiento.
+1. Prerequisitos manuales (fuera del repo): cuenta Resend con API key y remitente `onboarding@resend.dev` para dev (en producción, un dominio propio verificado en Resend); en el Dashboard de Supabase, Auth → "Confirm email" desactivado y password mínimo 6. Verificación: un signup manual de prueba con email+password devuelve sesión inmediata sin correo de Supabase.
+2. `npm install resend` y `.env.template`: `RESEND_API_KEY=`, `RESEND_FROM_EMAIL=onboarding@resend.dev` y `NEXT_PUBLIC_APP_URL=http://localhost:3000` (valores reales en `.env`, gitignored). Verificación: `npx tsc --noEmit` sin cambios de comportamiento y las 3 variables presentes en `.env`.
 3. Verificar estado real en la DB: `list_tables` (4 tablas), `pg_type` sin `relationship_type`/`invitation_status`, `pg_trigger` sin triggers en `public`/`auth`. Verificación: punto de partida confirmado.
 4. `apply_migration("create_invitation_enums")` con los 2 `CREATE TYPE`. Verificación: `pg_enum` muestra los 2 enums nuevos y ningún otro.
 5. `apply_migration("create_invitations_parent_children")` con las 2 tablas + `ENABLE ROW LEVEL SECURITY` + 4 policies + índices. Verificación: `list_tables` = 6 tablas; `pg_policies` sin solape de SELECT.
 6. `apply_migration("invitation_rpcs_and_auth_trigger")` con `get_invitation_preview`, `accept_invitation`, `handle_new_parent_user` y el trigger, más los `grant execute`. Verificación: `execute_sql` prueba `get_invitation_preview('AAAAA')` → 0 filas sin error.
 7. `apply_migration("restrict_parent_child_room_visibility")`: reemplazo de `children_select_same_daycare` y `rooms_select_same_daycare`. Verificación: `get_advisors` sin alertas nuevas; consultas de staff siguen devolviendo lo mismo.
-8. `utils/email/invitations.ts`: cliente Resend lazy (error claro si falta `RESEND_API_KEY`) + `sendInvitationEmail`. Verificación: envío manual con un código dummy a la casilla dueña de Resend → el correo llega y el HTML renderiza código, vencimiento y botón.
-9. `app/(app)/kids/[id]/actions.ts`: `createInvitation` (rol, validaciones, cancelar pendientes previas, código único con reintento ante `23505`, insert, email, cancelación si el envío falla, `revalidatePath`). Verificación: `npx next typegen && npx tsc --noEmit`; insertar una invitación desde el server y ver la fila y el email.
+8. `utils/email/invitations.ts`: cliente Resend lazy (error claro si falta `RESEND_API_KEY`) + `sendInvitationEmail` (remitente desde `RESEND_FROM_EMAIL`). Verificación: envío manual con un código dummy a la casilla dueña de Resend → el correo llega y el HTML renderiza código, vencimiento y botón.
+9. `app/(app)/kids/[id]/actions.ts`: `createInvitation` (rol, validaciones, cancelar pendientes previas, código único con reintento ante `23505`, insert, `activationUrl` armada con `NEXT_PUBLIC_APP_URL` —o el `origin` del request si falta—, email, cancelación si el envío falla, `revalidatePath`). Verificación: `npx next typegen && npx tsc --noEmit`; insertar una invitación desde el server y ver la fila y el email con el link apuntando a `http://localhost:3000`.
 10. `components/link-parent-modal.tsx`: `useTransition`, errores inline en español, caja de código con placeholder antes de enviar y código real en el estado de éxito; llama `onInvited()` para refrescar. Verificación: E2E con un niño real → fila nueva en `invitations` e email recibido.
 11. `components/kid-parents-card.tsx` + `app/(app)/kids/[id]/page.tsx` + `components/kid-profile.tsx`: props reales (`parents`, `canInvite`), sin import de `data/children.ts`, `router.refresh()` tras invitar, botón oculto si el rol no es `staff`/`admin`. Verificación: el perfil muestra el padre `PENDIENTE` recién invitado y los vinculados como `ACTIVA`.
 12. `app/(auth)/activate-account/page.tsx` + `components/activate-account-form.tsx`: lee `searchParams.code`, llama `get_invitation_preview` con el cliente server (anon), estados "código inválido/vencido" (link a `/login`) y formulario con email prellenado, password + checkbox; deja de usar `getChild("mateo-fernandez")`. Verificación: `?code=` válido muestra el niño real; código inexistente muestra el estado de error.
@@ -268,6 +280,7 @@ Convenciones: código en inglés, copy en español; los valores de `relationship
 - [ ] `createInvitation` con datos válidos inserta una fila en `invitations` (`invited_by` = usuario actual, `code` de 5 caracteres único, `expires_at` = +7 días, `status='pending'`) y devuelve el código.
 - [ ] El email de invitación llega a la casilla de pruebas con el nombre del niño, el código y el link `/activate-account?code=…`; sin `RESEND_API_KEY` o con Resend caído, la invitación queda `cancelled`, no hay código muerto y el modal muestra error inline en español.
 - [ ] Invitar dos veces al mismo email para el mismo niño deja la anterior `cancelled` y una sola invitación `pending` vigente.
+- [ ] El remitente y el dominio del link salen de `RESEND_FROM_EMAIL` y `NEXT_PUBLIC_APP_URL`: cambiando esas dos variables el correo sale del remitente nuevo y el link apunta al dominio nuevo sin tocar código; sin `RESEND_FROM_EMAIL` el envío falla controlado (invitación `cancelled` + error inline) en vez de mandar con un remitente inválido.
 - [ ] El modal ya no genera el código en el cliente: antes de enviar la caja muestra un placeholder y, tras el envío exitoso, el código real que se envió por email.
 - [ ] El botón "Vincular otro padre" no se renderiza si el rol del usuario no es `staff` ni `admin`; con `staff` sí, y el insert lo autoriza RLS.
 - [ ] El perfil del niño lista los padres reales: vinculados como `ACTIVA` y pendientes como `PENDIENTE`, incluyendo la invitación recién enviada tras el `router.refresh()`.
@@ -283,7 +296,8 @@ Convenciones: código en inglés, copy en español; los valores de `relationship
 
 - **Yes:** un solo spec para DB + email + modal + activación. Decisión del usuario, aceptando que es más grande que los specs previos.
 - **Yes:** el email de invitación es la verificación del padre. Se desactiva la confirmación de email de Supabase Auth (prerequisite del paso 1) y `signUp` deja sesión inmediata; un solo correo en lugar de dos.
-- **Yes:** remitente `onboarding@resend.dev` (pruebas). Descarta dominio verificado: no hay dominio propio en el proyecto.
+- **Yes:** remitente `onboarding@resend.dev` en dev y dominio propio en producción, siempre vía `RESEND_FROM_EMAIL`. Decisión del usuario: el proyecto va a producción, así que ni el remitente ni la base del link se escriben en el código.
+- **Yes:** `NEXT_PUBLIC_APP_URL` para la base del link de activación, con fallback al `origin` del request. Descarta derivarlo solo del request: en Server Actions con hosts detrás de proxy el `origin` puede no ser el dominio público, y el correo necesita el dominio real.
 - **Yes:** email HTML con la paleta de la app, código y botón al link de activación, con fallback de texto plano.
 - **Yes:** el código se genera en el servidor al enviar y el modal muestra el código real en el estado de éxito. Descarta el preview del cliente: garantiza que lo mostrado sea lo guardado y enviado.
 - **Yes:** `relationship_type` usa los valores del esquema (`guardian` para Tutor/a) y la UI traduce. Descarta mantener `"tutor"` en la capa de datos: evita un mapeo en cada lectura.
@@ -307,7 +321,9 @@ Convenciones: código en inglés, copy en español; los valores de `relationship
 
 | Riesgo | Mitigación |
 | --- | --- |
-| `onboarding@resend.dev` solo entrega al email dueño de la cuenta Resend | Suficiente para dev y verificación; el paso 1 documenta que la entrega real requiere dominio verificado (fuera de alcance). |
+| `onboarding@resend.dev` solo entrega al email dueño de la cuenta Resend | Suficiente para dev y verificación. El paso a producción no toca código: se cambian `RESEND_FROM_EMAIL` y `NEXT_PUBLIC_APP_URL` y se verifica el dominio en Resend (DNS/DKIM, fuera de alcance). |
+| `NEXT_PUBLIC_APP_URL` mal seteada genera links a localhost en producción | Está en el checklist de paso a producción; si falta, el fallback al `origin` del request evita links rotos en local. |
+| Email de invitación apuntando a un dominio que aún no responde | En dev el link es `http://localhost:3000` y solo sirve en la misma máquina; la entrega real se valida al desplegar (fuera de alcance). |
 | `get_invitation_preview` devuelve el email de la invitación y es llamable por `anon` | Código de 5 caracteres alfanuméricos (≈39M combinaciones) y solo devuelve invitaciones `pending` vigentes; riesgo de enumeración aceptado y anotado. Si molesta, otro spec agrega rate limiting o email enmascarado. |
 | Fallo entre `signUp` y `accept_invitation` deja un `auth.users` + `public.users` sin vínculo | El action reintenta aceptar en el mismo request; si igual falla, el usuario puede iniciar sesión con su contraseña y volver a activar con el código (el `parent_children` es idempotente vía `ON CONFLICT`). |
 | Confirmaciones de email de Supabase reactivadas por error | El flujo asume sesión inmediata; queda documentado como prerequisite. Si se reactivan, el signup no devuelve sesión y `accept_invitation` falla: mensaje genérico y sin vínculos creados. |
