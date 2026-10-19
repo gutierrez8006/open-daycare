@@ -1,6 +1,6 @@
 # SPEC 12 — Vinculación real de padre: invitaciones por email y registro con código
 
-> **Status:** Borrador
+> **Status:** Aprobado
 > **Depends on:** SPEC 07, SPEC 08, SPEC 09, SPEC 10, SPEC 11
 > **Date:** 2026-10-19
 > **Objective:** Crear la vinculación real de un padre con un niño: invitación con código enviada con Resend desde el modal de `/kids/[id]`, tablas `invitations`/`parent_children` con RLS, y registro del padre en `/activate-account?code=…` que consume la invitación.
