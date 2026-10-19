@@ -1,6 +1,6 @@
 # SPEC 11 — Persistencia del modal "Agregar niño" (INSERT real en `children`)
 
-> **Status:** Draft
+> **Status:** Aprobado
 > **Depends on:** SPEC 04, SPEC 10
 > **Date:** 2026-10-18
 > **Objective:** Conectar el modal "Agregar niño" de `/kids` a la DB real: salas desde `rooms` y guardado del niño en `children` vía Server Action.
