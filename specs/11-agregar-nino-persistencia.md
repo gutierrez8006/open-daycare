@@ -1,6 +1,6 @@
 # SPEC 11 — Persistencia del modal "Agregar niño" (INSERT real en `children`)
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** SPEC 04, SPEC 10
 > **Date:** 2026-10-18
 > **Objective:** Conectar el modal "Agregar niño" de `/kids` a la DB real: salas desde `rooms` y guardado del niño en `children` vía Server Action.
@@ -85,19 +85,19 @@ Convenciones: código en inglés, copy en español. El Server Action corre con e
 
 ## Acceptance criteria
 
-- [ ] El `<select>` de Sala lista las rooms reales del daycare desde la DB (Soles, Estrellas, Arcoíris) sin importar `data/children.ts`.
-- [ ] "Guardar" válido crea una fila en `children` con `full_name`, `birth_date` (fecha real convertida), `room_id`, `medical_notes` (NULL si vacío) y `allergy_tags` (split por coma + trim; `'{}'` si vacío).
-- [ ] El insert NO envía `enrolled_at`, `photo_consent` ni `status`; la fila queda con `current_date`, `true` y `'active'`.
-- [ ] Nombre vacío (solo espacios) muestra error inline y no inserta.
-- [ ] Fecha fuera de `dd/mm/aaaa`, inexistente en el calendario (ej. `31/02/2022`) o futura muestra error inline y no inserta.
-- [ ] Tras guardar exitoso el modal cierra y `/kids` muestra el niño nuevo en el orden por `full_name`, y su tarjeta linkea a un perfil que renderiza.
-- [ ] Si el INSERT falla (ej. `room_id` ajeno a la guardería o RLS denegado), el modal queda abierto con error inline en español y no se crea fila.
-- [ ] El botón "Agregar niño" no se renderiza para usuarios cuyo rol no es `staff` ni `admin`.
-- [ ] "Cancelar", backdrop y `Esc` siguen cerrando sin guardar (comportamiento del SPEC 04 preservado).
-- [ ] Mientras el action está en `pending`, "Guardar" está deshabilitado (sin doble insert).
-- [ ] `npm run lint` y `npx next typegen && npx tsc --noEmit` pasan; el acceso a datos usa solo `utils/supabase/*` dentro del Server Action, sin `fetch` directo ni `service_role`.
-- [ ] `npm run build` pasa (ver Risks: bug preexistente de Next 16.3.6 en `/_global-error`).
-- [ ] Sin cambios en tablas: `list_tables` sigue mostrando `daycares`, `users`, `rooms`, `children`.
+- [x] El `<select>` de Sala lista las rooms reales del daycare desde la DB (Soles, Estrellas, Arcoíris) sin importar `data/children.ts`. — _Evidence: `add-kid-modal.tsx:179` (`rooms.map`), grep sin `data/children` en el modal, snapshot `.playwright-mcp/page-2026-10-19T02-00-44-922Z.yml` (options Soles/Estrellas/Arcoíris)_
+- [x] "Guardar" válido crea una fila en `children` con `full_name`, `birth_date` (fecha real convertida), `room_id`, `medical_notes` (NULL si vacío) y `allergy_tags` (split por coma + trim; `'{}'` si vacío). — _Evidence: SELECT en DB → Zeta Prueba: `birth_date: 2022-03-15`, `medical_notes: null`, `allergy_tags: ["Maní","Lactosa"]`_
+- [x] El insert NO envía `enrolled_at`, `photo_consent` ni `status`; la fila queda con `current_date`, `true` y `'active'`. — _Evidence: `actions.ts` insert payload sin esas columnas; fila en DB: `enrolled_at: 2026-10-19`, `photo_consent: true`, `status: active`_
+- [x] Nombre vacío (solo espacios) muestra error inline y no inserta. — _Evidence: Playwright → "Ingresa el nombre completo" + `aria-invalid`, contador siguió en 1_
+- [x] Fecha fuera de `dd/mm/aaaa`, inexistente en el calendario (ej. `31/02/2022`) o futura muestra error inline y no inserta. — _Evidence: Playwright → 31/02/2022 "Usa una fecha válida (dd/mm/aaaa)"; 15/03/2030 "La fecha de nacimiento no puede ser futura"_
+- [x] Tras guardar exitoso el modal cierra y `/kids` muestra el niño nuevo en el orden por `full_name`, y su tarjeta linkea a un perfil que renderiza. — _Evidence: screenshot post-guardado ("1 niño", card Zeta Prueba con badge MANÍ), perfil `/kids/8577392f-…` renderiza nombre/edad/sala/ingreso/badges/PADRES_
+- [x] Si el INSERT falla (ej. `room_id` ajeno a la guardería o RLS denegado), el modal queda abierto con error inline en español y no se crea fila. — _Evidence por código: `actions.ts` mapea todo error de DB a `GENERIC_ERROR` y `add-kid-modal.tsx` lo renderiza en `role="alert"` sin cerrar; el mismo banner se ejercitó en runtime con errores de validación_
+- [x] El botón "Agregar niño" no se renderiza para usuarios cuyo rol no es `staff` ni `admin`. — _Evidence por código: `page.tsx` (`WRITABLE_ROLES` + `{canAddKids && <AddKidModal/>}`); no testeable en runtime sin un segundo usuario_
+- [x] "Cancelar", backdrop y `Esc` siguen cerrando sin guardar (comportamiento del SPEC 04 preservado). — _Evidence: Playwright → Esc cerró el modal tras validaciones fallidas_
+- [x] Mientras el action está en `pending`, "Guardar" está deshabilitado (sin doble insert). — _Evidence por código: `add-kid-modal.tsx` `disabled={isPending}` + `useTransition`_
+- [x] `npm run lint` y `npx next typegen && npx tsc --noEmit` pasan; el acceso a datos usa solo `utils/supabase/*` dentro del Server Action, sin `fetch` directo ni `service_role`. — _Evidence: eslint exit 0, tsc exit 0, grep `fetch\(|localStorage|sessionStorage|service_role` sin coincidencias_
+- [x] `npm run build` pasa (ver Risks: bug preexistente de Next 16.3.6 en `/_global-error`). — _Evidence: build compila ("Compiled successfully" + "Finished TypeScript"); el prerender de `/_global-error` sigue cayendo con el `InvariantError` interno de Next preexistente desde SPEC 10, ajeno a este spec_
+- [x] Sin cambios en tablas: `list_tables` sigue mostrando `daycares`, `users`, `rooms`, `children`. — _Evidence: `list_tables` → exactamente esas 4 tablas_
 
 ## Decisions
 
