@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { children } from "@/data/children";
 
-const rooms = [...new Set(children.map((child) => child.room))];
+export type AddKidRoom = {
+  id: string;
+  name: string;
+};
 
 const labelClass = "mb-2 text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
 const inputClass =
@@ -26,7 +28,7 @@ const isValidBirthDate = (value: string): boolean => {
 type AddKidForm = {
   fullName: string;
   birthDate: string;
-  room: string;
+  roomId: string;
   allergies: string;
   medicalNotes: string;
 };
@@ -36,17 +38,17 @@ type AddKidErrors = {
   birthDate?: string;
 };
 
-const initialForm: AddKidForm = {
+const buildInitialForm = (rooms: AddKidRoom[]): AddKidForm => ({
   fullName: "",
   birthDate: "",
-  room: rooms[0] ?? "Soles",
+  roomId: rooms[0]?.id ?? "",
   allergies: "",
   medicalNotes: "",
-};
+});
 
-export default function AddKidModal() {
+export default function AddKidModal({ rooms }: { rooms: AddKidRoom[] }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<AddKidForm>(initialForm);
+  const [form, setForm] = useState<AddKidForm>(() => buildInitialForm(rooms));
   const [errors, setErrors] = useState<AddKidErrors>({});
 
   const setField = (field: keyof AddKidForm, value: string) => {
@@ -92,7 +94,7 @@ export default function AddKidModal() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     setOpen(false);
-    setForm(initialForm);
+    setForm(buildInitialForm(rooms));
     setErrors({});
   };
 
@@ -170,13 +172,13 @@ export default function AddKidModal() {
                   <div className="relative">
                     <select
                       aria-label="Sala"
-                      value={form.room}
-                      onChange={(event) => setField("room", event.target.value)}
+                      value={form.roomId}
+                      onChange={(event) => setField("roomId", event.target.value)}
                       className={`${inputClass} appearance-none pr-10 font-bold`}
                     >
                       {rooms.map((room) => (
-                        <option key={room} value={room}>
-                          {room}
+                        <option key={room.id} value={room.id}>
+                          {room.name}
                         </option>
                       ))}
                     </select>
