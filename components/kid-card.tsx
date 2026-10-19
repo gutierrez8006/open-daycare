@@ -1,23 +1,61 @@
 import Link from "next/link";
-import type { Child } from "@/data/children";
-import { allergyColors, allergyLabels } from "@/data/children";
+import { allergyColors, allergyLabels, type Allergy } from "@/data/children";
+
+export type KidListItem = {
+  id: string;
+  room_id: string;
+  full_name: string;
+  birth_date: string;
+  allergy_tags: string[];
+};
 
 const LINK_BADGE = { bg: "#F9D2DE", fg: "#C56486" };
+const DEFAULT_ALLERGY_COLORS = { bg: "#FBD8CC", fg: "#D9684A" };
 
-function parentsLabel(count: number): string {
-  if (count === 0) return "sin padres vinculados";
-  return `${count} ${count === 1 ? "padre vinculado" : "padres vinculados"}`;
+const AVATAR_PALETTE = [
+  { bg: "#A9D9E8", fg: "#1F7A93" },
+  { bg: "#F4B8CC", fg: "#C44A7A" },
+  { bg: "#B9DEC4", fg: "#3E8B62" },
+  { bg: "#F4DC8E", fg: "#9A7B1E" },
+  { bg: "#C9B6E8", fg: "#7B5FC0" },
+];
+
+export function ageFromBirthDate(birthDate: string): number {
+  const [year, month, day] = birthDate.split("-").map(Number);
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const hasHadBirthday =
+    today.getMonth() + 1 > month ||
+    (today.getMonth() + 1 === month && today.getDate() >= day);
+  if (!hasHadBirthday) age -= 1;
+  return Math.max(age, 0);
 }
 
-export default function KidCard({ child }: { child: Child }) {
-  const allergy = child.allergies[0];
-  const needsLinkBadge = !allergy && child.parents.length === 0;
+export function avatarFor(id: string): { bg: string; fg: string } {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
 
-  const badge = allergy
-    ? { label: allergyLabels[allergy], ...allergyColors[allergy] }
-    : needsLinkBadge
-      ? { label: "VINCULAR", ...LINK_BADGE }
-      : null;
+export function allergyBadge(
+  tag: string,
+): { label: string; bg: string; fg: string } {
+  const colors = allergyColors[tag as Allergy] ?? DEFAULT_ALLERGY_COLORS;
+  return {
+    label: allergyLabels[tag as Allergy] ?? tag.toUpperCase(),
+    ...colors,
+  };
+}
+
+export default function KidCard({ child }: { child: KidListItem }) {
+  const initial = child.full_name.trim().charAt(0).toUpperCase();
+  const age = ageFromBirthDate(child.birth_date);
+  const avatar = avatarFor(child.id);
+  const allergyTag = child.allergy_tags[0];
+
+  const badge = allergyTag
+    ? allergyBadge(allergyTag)
+    : { label: "VINCULAR", ...LINK_BADGE };
 
   return (
     <Link
@@ -26,47 +64,24 @@ export default function KidCard({ child }: { child: Child }) {
     >
       <div
         className="flex h-12 w-12 flex-none items-center justify-center rounded-full font-display text-[19px] font-semibold"
-        style={{ backgroundColor: child.avatar.bg, color: child.avatar.fg }}
+        style={{ backgroundColor: avatar.bg, color: avatar.fg }}
       >
-        {child.initial}
+        {initial}
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate font-display text-[16px] font-semibold text-ink">
-          {child.name}
+          {child.full_name}
         </div>
         <div className="text-[13px] text-muted">
-          {child.ageYears} años · {parentsLabel(child.parents.length)}
+          {age} {age === 1 ? "año" : "años"} · sin padres vinculados
         </div>
       </div>
-      {badge ? (
-        <span
-          className="flex-none rounded-full px-[9px] py-[5px] text-[11px] font-extrabold"
-          style={{ backgroundColor: badge.bg, color: badge.fg }}
-        >
-          {badge.label}
-        </span>
-      ) : (
-        <ChevronIcon />
-      )}
+      <span
+        className="flex-none rounded-full px-[9px] py-[5px] text-[11px] font-extrabold"
+        style={{ backgroundColor: badge.bg, color: badge.fg }}
+      >
+        {badge.label}
+      </span>
     </Link>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg
-      className="flex-none"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#CBB89F"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m9 18 6-6-6-6" />
-    </svg>
   );
 }

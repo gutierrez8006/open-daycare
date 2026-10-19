@@ -1,5 +1,6 @@
 import Sidebar, { type UserInfo } from "@/components/sidebar";
 import { createClient } from "@/utils/supabase/server";
+import { getCurrentDaycare } from "@/utils/current-daycare";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const supabase = await createClient();
@@ -12,27 +13,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   if (authUser) {
     const { data: profile } = await supabase
       .from("users")
-      .select("full_name, role, daycare_id")
+      .select("full_name, role")
       .eq("id", authUser.id)
       .single();
 
-    if (profile?.daycare_id) {
-      const { data: daycare } = await supabase
-        .from("daycares")
-        .select("name")
-        .eq("id", profile.daycare_id)
-        .single();
-
+    if (profile) {
+      const daycare = await getCurrentDaycare();
       userInfo = {
         fullName: profile.full_name,
         role: profile.role,
         daycareName: daycare?.name ?? "",
-      };
-    } else if (profile) {
-      userInfo = {
-        fullName: profile.full_name,
-        role: profile.role,
-        daycareName: "",
       };
     }
   }
