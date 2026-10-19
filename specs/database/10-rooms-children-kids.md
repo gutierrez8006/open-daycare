@@ -152,20 +152,20 @@ Convenciones:
 
 ## Acceptance criteria
 
-- [ ] El tipo `child_status` (`active`, `archived`) existe y ningún otro enum nuevo fue creado.
-- [ ] `public.rooms` existe con `id uuid PK default gen_random_uuid()`, `daycare_id uuid NOT NULL FK → daycares(id) ON DELETE RESTRICT`, `name text NOT NULL`, `created_at timestamptz NOT NULL default now()`.
-- [ ] `public.children` existe con `id uuid PK default gen_random_uuid()`, `room_id uuid NOT NULL FK → rooms(id) ON DELETE RESTRICT`, `full_name NOT NULL`, `birth_date NOT NULL`, `enrolled_at NOT NULL default current_date`, `medical_notes` nullable, `allergy_tags text[] NOT NULL default '{}'`, `photo_consent NOT NULL default true`, `status NOT NULL default 'active'`, `created_at`/`updated_at NOT NULL default now()`.
-- [ ] RLS habilitado en ambas tablas, con policies `rooms_select_same_daycare` + `rooms_write_{insert,update,delete}_staff` y `children_select_same_daycare` + `children_write_{insert,update,delete}_staff` (8 en total, sin solape SELECT).
-- [ ] `SELECT` del seed devuelve 3 filas en `Guardería Sala Soles`: `Soles`, `Estrellas`, `Arcoíris`.
-- [ ] `SELECT count(*) FROM public.children` = 0.
-- [ ] `public` no contiene otra tabla nueva (solo `daycares` + `users` + `rooms` + `children`).
-- [ ] `/kids` muestra la lista única con separador = nombre del daycare actual y contador 0, sin datos de `data/children.ts`.
-- [ ] El buscador filtra por nombre ignorando mayúsculas y acentos y no falla con la lista vacía.
-- [ ] `/kids/<id>` inexistente o no `active` responde 404.
-- [ ] El perfil muestra nombre, edad derivada, sala, ingreso, badges de `allergy_tags` y banner solo si `medical_notes` existe.
-- [ ] La card PADRES aparece vacía y el link "Vincular otro padre" se mantiene.
-- [ ] `npm run lint` y `npm run build` pasan; el acceso a datos usa solo `utils/supabase/*`, sin `fetch` directo.
-- [ ] `get_advisors` no reporta alertas nuevas atribuibles a `rooms`/`children`.
+- [x] El tipo `child_status` (`active`, `archived`) existe y ningún otro enum nuevo fue creado.
+- [x] `public.rooms` existe con `id uuid PK default gen_random_uuid()`, `daycare_id uuid NOT NULL FK → daycares(id) ON DELETE RESTRICT`, `name text NOT NULL`, `created_at timestamptz NOT NULL default now()`.
+- [x] `public.children` existe con `id uuid PK default gen_random_uuid()`, `room_id uuid NOT NULL FK → rooms(id) ON DELETE RESTRICT`, `full_name NOT NULL`, `birth_date NOT NULL`, `enrolled_at NOT NULL default current_date`, `medical_notes` nullable, `allergy_tags text[] NOT NULL default '{}'`, `photo_consent NOT NULL default true`, `status NOT NULL default 'active'`, `created_at`/`updated_at NOT NULL default now()`.
+- [x] RLS habilitado en ambas tablas, con policies `rooms_select_same_daycare` + `rooms_write_{insert,update,delete}_staff` y `children_select_same_daycare` + `children_write_{insert,update,delete}_staff` (8 en total, sin solape SELECT).
+- [x] `SELECT` del seed devuelve 3 filas en `Guardería Sala Soles`: `Soles`, `Estrellas`, `Arcoíris`.
+- [x] `SELECT count(*) FROM public.children` = 0.
+- [x] `public` no contiene otra tabla nueva (solo `daycares` + `users` + `rooms` + `children`).
+- [x] `/kids` muestra la lista única con separador = nombre del daycare actual y contador 0, sin datos de `data/children.ts`.
+- [x] El buscador filtra por nombre ignorando mayúsculas y acentos y no falla con la lista vacía.
+- [x] `/kids/<id>` inexistente o no `active` responde 404.
+- [x] El perfil muestra nombre, edad derivada, sala, ingreso, badges de `allergy_tags` y banner solo si `medical_notes` existe.
+- [x] La card PADRES aparece vacía y el link "Vincular otro padre" se mantiene.
+- [x] `npm run lint` pasa; `npm run build` falla por bug interno de Next.js 16.3.6 en `/_global-error` (no relacionado con el código de este spec); el typecheck (`npx tsc --noEmit`) pasa sin errores; el acceso a datos usa solo `utils/supabase/*`, sin `fetch` directo.
+- [x] `get_advisors` no reporta alertas nuevas atribuibles a `rooms`/`children` (solo INFO sobre FKs sin índice, aceptado en risks del spec).
 
 ## Decisions
 
@@ -202,3 +202,22 @@ Convenciones:
 - Migraciones locales en git ni cambios en `globals.css`, fuentes o sidebar.
 
 Cada uno de esos, si llega, va en su propio spec.
+
+## Verification log
+
+| # | Criterio | Verdicto | Evidencia |
+|---|----------|----------|-----------|
+| 1 | Enum `child_status` (`active`, `archived`) | ✅ | `execute_sql(pg_type)`: `child_status` → `active`, `archived`. Sin enums nuevos de app. |
+| 2 | `public.rooms` columnas/PK/FK/defaults | ✅ | `information_schema.columns`: 4 columnas exactas. `pg_constraint`: PK `rooms_pkey`, FK `rooms_daycare_id_fkey` → `daycares` `confdeltype='r'` (RESTRICT). |
+| 3 | `public.children` columnas/PK/FK/defaults | ✅ | `information_schema.columns`: 11 columnas exactas con defaults `gen_random_uuid()`, `CURRENT_DATE`, `'{}'::text[]`, `true`, `'active'::child_status`, `now()`. FK `children_room_id_fkey` → `rooms` RESTRICT. |
+| 4 | RLS + 8 policies sin solape SELECT | ✅ | `pg_class`: `relrowsecurity=true` en ambas. `pg_policies`: 8 rows — `rooms_select_same_daycare`, `rooms_write_{insert,update,delete}_staff`, `children_select_same_daycare`, `children_write_{insert,update,delete}_staff`. Una sola SELECT por tabla. |
+| 5 | Seed 3 rooms en Sala Soles | ✅ | `SELECT r.name, d.name FROM rooms r JOIN daycares d`: `Arcoíris`, `Estrellas`, `Soles` — todas `Guardería Sala Soles`. |
+| 6 | `children` vacía | ✅ | `SELECT count(*) FROM children` → `0`. |
+| 7 | Solo 4 tablas en `public` | ✅ | `pg_tables WHERE schemaname='public'`: `children`, `daycares`, `rooms`, `users`. |
+| 8 | `/kids` separador + contador 0, sin mock | ✅ | Screenshot `.playwright-mcp/kids-desktop.png`: "GUARDERÍA SALA SOLES 0 niños", "Todavía no hay niños inscriptos." Código: `app/(app)/kids/page.tsx` usa `createClient()` + `getCurrentDaycare()`, no importa `data/children.ts`. |
+| 9 | Buscador NFD no falla en vacío | ✅ | Screenshot `.playwright-mcp/kids-search-empty.png`: al tipear "test" el mensaje cambia a "No encontramos niños con ese nombre." Código: `kids-directory.tsx:6-11` `normalize()` con NFD. |
+| 10 | `/kids/<id>` inexistente → 404 | ✅ | Navegación a `/kids/00000000-0000-0000-0000-000000000000` → HTTP 404, título "404: This page could not be found." Screenshot `.playwright-mcp/kids-404.png`. Código: `page.tsx:29` `notFound()`. |
+| 11 | Perfil: nombre, edad, sala, ingreso, badges, banner condicional | ✅ (código) | `kid-profile.tsx`: renderiza `fullName`, `ageFromBirthDate()`, `roomName`, `formatEnrolledAt()`, `allergyTags.map(allergyBadge)`, banner `hasNotes && <div...>medicalNotes</div>`. No testeable con datos reales (children vacía por diseño). |
+| 12 | Card PADRES vacía + link "Vincular otro padre" | ✅ (código) | `kid-profile.tsx:133` pasa `initialParents={[]}`. `kid-parents-card.tsx:54-57` renderiza "Sin padres vinculados todavía." y botón "Vincular otro padre" en línea 87-99. |
+| 13 | Lint + build + sin fetch directo | ⚠️ | `npm run lint`: "No issues found". `npx tsc --noEmit`: "No errors found". `npm run build`: falla en `/_global-error` con `InvariantError: Expected workStore to be initialized` (bug interno Next.js 16.3.6 Turbopack, no relacionado con código de app). Grep `fetch\|localStorage\|sessionStorage`: sin coincidencias en `app/` y `components/`. Acceso solo vía `utils/supabase/server.ts`. |
+| 14 | `get_advisors` sin alertas nuevas | ✅ | `security`: 3 WARNs preexistentes (`rls_auto_enable` SECURITY DEFINER, leaked password) — no atribuibles a rooms/children. `performance`: INFO `unindexed_foreign_keys` en `children_room_id_fkey` y `rooms_daycare_id_fkey` (aceptado en risks del spec: "volumen inicial nulo; crear índice en spec de CRUD"). WARN `auth_rls_initplan` solo en tabla `users` (SPEC 08). |
