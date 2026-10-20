@@ -1,48 +1,54 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { children } from "@/data/children";
-import type { ChildParent, ParentStatus } from "@/data/children";
+import { useRouter } from "next/navigation";
 import LinkParentModal from "@/components/link-parent-modal";
+
+export type KidParentEntry = {
+  id: string;
+  name: string;
+  relationship: "mother" | "father" | "guardian";
+  status: "active" | "pending";
+};
 
 const PARENT_AVATAR_COLORS = ["#C9B6E8", "#A9C7E8"];
 
-const statusBadge: Record<ParentStatus, { label: string; className: string }> =
-  {
-    active: { label: "ACTIVA", className: "bg-[#CFEBD8] text-[#3E9B6C]" },
-    pending: { label: "PENDIENTE", className: "bg-[#F7E7A6] text-[#9A7B1E]" },
-  };
+const statusBadge: Record<
+  KidParentEntry["status"],
+  { label: string; className: string }
+> = {
+  active: { label: "ACTIVA", className: "bg-[#CFEBD8] text-[#3E9B6C]" },
+  pending: { label: "PENDIENTE", className: "bg-[#F7E7A6] text-[#9A7B1E]" },
+};
 
-function relationLabel(relation: ChildParent["relation"]): string {
-  if (relation === "tutor") return "Tutor/a";
-  return relation === "mother" ? "Mamá" : "Papá";
+function relationLabel(relationship: KidParentEntry["relationship"]): string {
+  if (relationship === "guardian") return "Tutor/a";
+  return relationship === "mother" ? "Mamá" : "Papá";
 }
 
-function statusText(parent: ChildParent): string {
+function statusText(parent: KidParentEntry): string {
   if (parent.status === "pending") return "invitación enviada";
-  return parent.relation === "mother" ? "activa" : "activo";
+  return parent.relationship === "mother" ? "activa" : "activo";
 }
 
 export default function KidParentsCard({
   childId,
   childName,
-  initialParents,
+  parents,
+  canInvite,
 }: {
   childId: string;
   childName: string;
-  initialParents: ChildParent[];
+  parents: KidParentEntry[];
+  canInvite: boolean;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [parents, setParents] = useState(initialParents);
 
   const closeModal = useCallback(() => setOpen(false), []);
-
-  const handleParentAdded = (parent: ChildParent) => {
-    const child = children.find((entry) => entry.id === childId);
-    if (child) child.parents.push(parent);
-    setParents((current) => [...current, parent]);
-    setOpen(false);
-  };
+  const handleInvited = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   return (
     <div className="rounded-[16px] border border-line bg-card px-[18px] py-4">
@@ -73,7 +79,7 @@ export default function KidParentsCard({
                   {parent.name}
                 </div>
                 <div className="text-[12.5px] text-muted">
-                  {relationLabel(parent.relation)} · {statusText(parent)}
+                  {relationLabel(parent.relationship)} · {statusText(parent)}
                 </div>
               </div>
               <span
@@ -84,26 +90,29 @@ export default function KidParentsCard({
             </div>
           );
         })}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={`Vincular otro padre a ${childName}`}
-          className="flex items-center gap-3 pt-2"
-        >
-          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full border-[1.5px] border-dashed border-[#D8CBBA] text-[#B0A290]">
-            <PlusIcon />
-          </span>
-          <span className="text-[14.5px] font-extrabold text-[#C5503A]">
-            Vincular otro padre
-          </span>
-        </button>
+        {canInvite && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label={`Vincular otro padre a ${childName}`}
+            className="flex items-center gap-3 pt-2"
+          >
+            <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full border-[1.5px] border-dashed border-[#D8CBBA] text-[#B0A290]">
+              <PlusIcon />
+            </span>
+            <span className="text-[14.5px] font-extrabold text-[#C5503A]">
+              Vincular otro padre
+            </span>
+          </button>
+        )}
       </div>
 
       {open && (
         <LinkParentModal
+          childId={childId}
           childName={childName}
           onClose={closeModal}
-          onSubmit={handleParentAdded}
+          onInvited={handleInvited}
         />
       )}
     </div>
