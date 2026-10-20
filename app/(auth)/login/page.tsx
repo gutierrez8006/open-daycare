@@ -1,7 +1,15 @@
 import Link from "next/link";
 import LoginForm from "@/components/login-form";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: PageProps<"/login">) {
+  const params = await searchParams;
+  const activatedParam = params.activated;
+  const activated = Array.isArray(activatedParam)
+    ? activatedParam.includes("1")
+    : activatedParam === "1";
+
   return (
     <div className="grid min-h-screen bg-[#FBF4EC] md:grid-cols-[1.05fr_1fr]">
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#F6A98E] via-[#F2937A] to-[#EC7E62] p-14 text-white md:flex md:flex-col md:justify-between">
@@ -42,6 +50,15 @@ export default function LoginPage() {
           <p className="mt-1.5 mb-7 text-[15px] text-muted-strong">
             Ingresá para ver el día de hoy.
           </p>
+
+          {activated && (
+            <div
+              role="status"
+              className="mb-5 rounded-[12px] border border-[#B9DCC4] bg-[#E7F4EB] px-4 py-3 text-[13.5px] font-bold text-[#2F7D55]"
+            >
+              Tu cuenta está activa. Ya podés iniciar sesión.
+            </div>
+          )}
 
           <LoginForm />
 

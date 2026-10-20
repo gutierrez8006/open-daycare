@@ -1,6 +1,6 @@
 # SPEC 12 — Vinculación real de padre: invitaciones por email y registro con código
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** SPEC 07, SPEC 08, SPEC 09, SPEC 10, SPEC 11
 > **Date:** 2026-10-19
 > **Objective:** Crear la vinculación real de un padre con un niño: invitación con código enviada con Resend desde el modal de `/kids/[id]`, tablas `invitations`/`parent_children` con RLS, y registro del padre en `/activate-account?code=…` que consume la invitación.
@@ -272,25 +272,25 @@ Convenciones: código en inglés, copy en español; los valores de `relationship
 
 ## Acceptance criteria
 
-- [ ] Los enums `relationship_type` (`father`, `mother`, `guardian`) e `invitation_status` (`pending`, `accepted`, `expired`, `cancelled`) existen y ningún otro enum nuevo fue creado.
-- [ ] `public.invitations` y `public.parent_children` existen con las columnas, defaults, FKs y `UNIQUE (parent_id, child_id)` del spec; `public` pasa a tener 6 tablas.
-- [ ] RLS habilitado en ambas tablas nuevas, con las 4 policies del spec y sin policies de escritura en `parent_children`.
-- [ ] La policy de lectura de `children` (y `rooms`) ya no expone todos los niños a un `parent`: con `execute_sql` simulando un padre, solo se ve su niño; el staff sigue viendo todos los de su daycare.
-- [ ] `get_invitation_preview('CODIGO')` devuelve niño, sala, daycare, email y vencimiento solo si la invitación está `pending` y sin vencer; con un código inexistente, vencido o `accepted` devuelve 0 filas y no expone datos.
-- [ ] `createInvitation` con datos válidos inserta una fila en `invitations` (`invited_by` = usuario actual, `code` de 5 caracteres único, `expires_at` = +7 días, `status='pending'`) y devuelve el código.
-- [ ] El email de invitación llega a la casilla de pruebas con el nombre del niño, el código y el link `/activate-account?code=…`; sin `RESEND_API_KEY` o con Resend caído, la invitación queda `cancelled`, no hay código muerto y el modal muestra error inline en español.
-- [ ] Invitar dos veces al mismo email para el mismo niño deja la anterior `cancelled` y una sola invitación `pending` vigente.
-- [ ] El remitente y el dominio del link salen de `RESEND_FROM_EMAIL` y `NEXT_PUBLIC_APP_URL`: cambiando esas dos variables el correo sale del remitente nuevo y el link apunta al dominio nuevo sin tocar código; sin `RESEND_FROM_EMAIL` el envío falla controlado (invitación `cancelled` + error inline) en vez de mandar con un remitente inválido.
-- [ ] El modal ya no genera el código en el cliente: antes de enviar la caja muestra un placeholder y, tras el envío exitoso, el código real que se envió por email.
-- [ ] El botón "Vincular otro padre" no se renderiza si el rol del usuario no es `staff` ni `admin`; con `staff` sí, y el insert lo autoriza RLS.
-- [ ] El perfil del niño lista los padres reales: vinculados como `ACTIVA` y pendientes como `PENDIENTE`, incluyendo la invitación recién enviada tras el `router.refresh()`.
-- [ ] `/activate-account?code=…` con código válido muestra el nombre real del niño y el email prellenado; con código inválido, vencido o ausente muestra el estado de error con link a `/login`.
-- [ ] Activar con el email correcto crea la fila en `public.users` (`role='parent'`, `daycare_id` del niño), el vínculo en `parent_children`, marca la invitación `accepted` con `accepted_at`, y redirige a `/login?activated=1` con el aviso visible.
-- [ ] Activar con un email distinto al de la invitación (o con código vencido) muestra error inline y no crea usuario ni vínculo.
-- [ ] Un signup con código inválido/vencido no deja usuario en `auth.users` (el trigger falla y revierte).
-- [ ] Un padre ya registrado puede aceptar una segunda invitación usando su email y contraseña actuales (login + `accept_invitation`), sin duplicar su fila en `users`.
-- [ ] `npm run lint` y `npx next typegen && npx tsc --noEmit` pasan; el acceso a datos usa solo `utils/supabase/*` y el email solo se envía desde el servidor con `resend`, sin `service_role` y sin `fetch` directo a la API de Supabase.
-- [ ] `get_advisors` no reporta alertas nuevas atribuibles a este spec.
+- [x] Los enums `relationship_type` (`father`, `mother`, `guardian`) e `invitation_status` (`pending`, `accepted`, `expired`, `cancelled`) existen y ningún otro enum nuevo fue creado.
+- [x] `public.invitations` y `public.parent_children` existen con las columnas, defaults, FKs y `UNIQUE (parent_id, child_id)` del spec; `public` pasa a tener 6 tablas.
+- [x] RLS habilitado en ambas tablas nuevas, con las 4 policies del spec y sin policies de escritura en `parent_children`.
+- [x] La policy de lectura de `children` (y `rooms`) ya no expone todos los niños a un `parent`: con `execute_sql` simulando un padre, solo se ve su niño; el staff sigue viendo todos los de su daycare.
+- [x] `get_invitation_preview('CODIGO')` devuelve niño, sala, daycare, email y vencimiento solo si la invitación está `pending` y sin vencer; con un código inexistente, vencido o `accepted` devuelve 0 filas y no expone datos.
+- [x] `createInvitation` con datos válidos inserta una fila en `invitations` (`invited_by` = usuario actual, `code` de 5 caracteres único, `expires_at` = +7 días, `status='pending'`) y devuelve el código.
+- [x] El email de invitación llega a la casilla de pruebas con el nombre del niño, el código y el link `/activate-account?code=…`; sin `RESEND_API_KEY` o con Resend caído, la invitación queda `cancelled`, no hay código muerto y el modal muestra error inline en español.
+- [x] Invitar dos veces al mismo email para el mismo niño deja la anterior `cancelled` y una sola invitación `pending` vigente.
+- [x] El remitente y el dominio del link salen de `RESEND_FROM_EMAIL` y `NEXT_PUBLIC_APP_URL`: cambiando esas dos variables el correo sale del remitente nuevo y el link apunta al dominio nuevo sin tocar código; sin `RESEND_FROM_EMAIL` el envío falla controlado (invitación `cancelled` + error inline) en vez de mandar con un remitente inválido.
+- [x] El modal ya no genera el código en el cliente: antes de enviar la caja muestra un placeholder y, tras el envío exitoso, el código real que se envió por email.
+- [x] El botón "Vincular otro padre" no se renderiza si el rol del usuario no es `staff` ni `admin`; con `staff` sí, y el insert lo autoriza RLS.
+- [x] El perfil del niño lista los padres reales: vinculados como `ACTIVA` y pendientes como `PENDIENTE`, incluyendo la invitación recién enviada tras el `router.refresh()`.
+- [x] `/activate-account?code=…` con código válido muestra el nombre real del niño y el email prellenado; con código inválido, vencido o ausente muestra el estado de error con link a `/login`.
+- [x] Activar con el email correcto crea la fila en `public.users` (`role='parent'`, `daycare_id` del niño), el vínculo en `parent_children`, marca la invitación `accepted` con `accepted_at`, y redirige a `/login?activated=1` con el aviso visible.
+- [x] Activar con un email distinto al de la invitación (o con código vencido) muestra error inline y no crea usuario ni vínculo.
+- [x] Un signup con código inválido/vencido no deja usuario en `auth.users` (el trigger falla y revierte).
+- [x] Un padre ya registrado puede aceptar una segunda invitación usando su email y contraseña actuales (login + `accept_invitation`), sin duplicar su fila en `users`.
+- [x] `npm run lint` y `npx next typegen && npx tsc --noEmit` pasan; el acceso a datos usa solo `utils/supabase/*` y el email solo se envía desde el servidor con `resend`, sin `service_role` y sin `fetch` directo a la API de Supabase.
+- [x] `get_advisors` no reporta alertas nuevas atribuibles a este spec.
 
 ## Decisions
 
@@ -343,3 +343,35 @@ Convenciones: código en inglés, copy en español; los valores de `relationship
 - `data/children.ts`, `globals.css`, fuentes, sidebar u otras rutas.
 
 Cada uno de esos, si llega, va en su propio spec.
+
+## Verification
+
+Fecha: 2026-10-19.
+
+Migraciones remotas aplicadas (en orden): `create_invitation_enums`, `create_invitations_parent_children`, `invitation_rpcs_and_auth_trigger`, `harden_invitation_function_grants`, `revoke_anon_accept_invitation`, `restrict_parent_child_room_visibility`, `restore_previous_child_room_select_policies` (rollback temporal), `fix_parent_child_room_visibility_recursion`, `move_visibility_helpers_to_private_schema`, `allow_staff_read_daycare_users`, `merge_users_select_policies`.
+
+Evidencia por criterio:
+
+- Enums y tablas: `pg_enum` confirma los 2 enums con sus valores exactos; `list_tables` muestra 6 tablas en `public`; FKs, defaults, `UNIQUE (code)` y `UNIQUE (parent_id, child_id)` verificados con `pg_constraint`/`information_schema`.
+- RLS: 3 policies en `invitations` (SELECT/INSERT/UPDATE) y 1 SELECT en `parent_children`. Simulación con `set local role authenticated` + `request.jwt.claims`: staff ve 2 niños/3 salas/2 vínculos/3 invitaciones; padre ve solo sus 2 niños vinculados, 1 sala, 2 vínculos y 0 invitaciones; un niño temporal del mismo daycare **no** aparece para el padre.
+- `get_invitation_preview`: código pending vigente devuelve niño/sala/daycare/email/vencimiento; código inexistente, `accepted` o vencido devuelve 0 filas y la página muestra “Invitación no válida”.
+- `createInvitation`: E2E con el modal generó filas con `invited_by` correcto, código de 5 caracteres, `expires_at > now()+6 days`, `status='pending'`, y el código real se mostró en el modal.
+- Email: envío real con Resend a la casilla de pruebas (`{ ok: true }`); con `RESEND_FROM_EMAIL` vacío el modal mostró “Falta configurar el remitente de invitaciones.” y la fila quedó `cancelled` (sin código vigente). Sin `RESEND_API_KEY` la utilidad devuelve error controlado.
+- Duplicados: invitar dos veces al mismo email+niño dejó la anterior `cancelled` y una sola `pending`.
+- Remitente/dominio: solo se leen `RESEND_FROM_EMAIL` y `NEXT_PUBLIC_APP_URL` (fallback al `origin`); no hay dominio hardcodeado.
+- Modal/card: placeholder `— — — — —` antes de enviar, código real después; `router.refresh()` actualiza la card; `canInvite` oculta el botón para `parent` y lo muestra para `staff`.
+- Activación: código válido muestra niño real y email prellenado; email distinto devuelve error sin crear usuario; activación correcta crea `auth.users` + `public.users` (`role='parent'`, daycare del niño, `full_name` de la invitación), crea el vínculo, marca `accepted` con `accepted_at` y redirige a `/login?activated=1` con el aviso visible.
+- Segunda invitación: el padre ya registrado usó su contraseña actual, aceptó una invitación para otro niño y quedó con 2 vínculos sin duplicar `auth.users` ni `public.users`.
+- Signup inválido: un signup con `invitation_code` inexistente es rechazado por el trigger y deja 0 filas en `auth.users`.
+- Gates: `npm run lint` y `npx next typegen && npx tsc --noEmit` pasan. `npm run build` compila y typechequea, pero falla en `/_global-error` por el bug preexistente de Next 16.3.6 documentado en Risks.
+- Advisors: security solo reporta las RPCs `SECURITY DEFINER` intencionales (`get_invitation_preview` para anon, `accept_invitation` para authenticated) más avisos preexistentes (`rls_auto_enable`, leaked password). Performance queda sin alertas nuevas atribuibles; solo INFO de FKs preexistentes sin índice y de índices nuevos aún sin uso.
+- Playwright: comparación visual del modal contra `references/pantallas/vincular-padre.dc.html` en desktop (1440px) y mobile (375px); estructura, espaciados, paleta y tipografía coinciden. Capturas en `.playwright-mcp/spec12-*.png`.
+
+Desviaciones necesarias respecto del SQL literal del spec:
+
+- Las policies cruzadas de `children`/`rooms`/`parent_children` producían `42P17 infinite recursion`. Se reemplazaron por helpers `SECURITY DEFINER` en el schema no expuesto `private` (`is_child_visible`, `is_room_visible`, `is_staff_of_daycare`), con `execute` solo para `authenticated`. Misma semántica, sin recursión.
+- `users` solo tenía `users_select_own`, por lo que staff no podía leer el nombre de los padres. Se agregó `users_select_own_or_daycare_staff` (fusión de la policy propia + staff del mismo daycare).
+- Se agregó `invitations_invited_by_idx` para cubrir la FK `invited_by`.
+
+Datos de prueba conservados: usuario padre `Madre E2E` (`gutierrez.8006@gmail.com`) vinculado a “Zeta Prueba” y “Carlos Echegaray Quispe”. Las invitaciones usadas quedaron `accepted`; las filas de prueba fallidas se eliminaron.
+

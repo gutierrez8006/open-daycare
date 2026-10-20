@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { ChildParent, ParentRelation } from "@/data/children";
-import { generateInviteCode } from "@/data/children";
+import { useEffect, useState, useTransition } from "react";
+import { createInvitation } from "@/app/(app)/kids/[id]/actions";
+
+type Relationship = "mother" | "father" | "guardian";
 
 type LinkParentForm = {
   name: string;
   email: string;
-  relation: ParentRelation;
+  relation: Relationship;
 };
 
 type LinkParentErrors = {
@@ -24,36 +25,34 @@ const initialForm: LinkParentForm = {
 const labelClass =
   "mb-2 text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
 const inputClass =
-  "w-full rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-[13px] text-[15px] text-[#3F362E] outline-none placeholder:text-[#B6A99B]";
+  "w-full rounded-[14px] border-[1.5px] border-[#EADFD0] bg-white px-4 py-[13px] text-[15px] text-[#3F362E] outline-none placeholder:text-[#B6A99B] disabled:opacity-60";
 const errorClass = "mt-1.5 text-[12px] font-bold text-[#D9583C]";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const slugify = (value: string): string =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "-");
-
-const relationPills: { value: ParentRelation; label: string }[] = [
+const relationPills: { value: Relationship; label: string }[] = [
   { value: "mother", label: "Mamá" },
   { value: "father", label: "Papá" },
-  { value: "tutor", label: "Tutor/a" },
+  { value: "guardian", label: "Tutor/a" },
 ];
 
 export default function LinkParentModal({
+  childId,
   childName,
   onClose,
-  onSubmit,
+  onInvited,
 }: {
+  childId: string;
   childName: string;
   onClose: () => void;
-  onSubmit: (parent: ChildParent) => void;
+  onInvited: () => void;
 }) {
   const [form, setForm] = useState<LinkParentForm>(initialForm);
   const [errors, setErrors] = useState<LinkParentErrors>({});
-  const [inviteCode] = useState(generateInviteCode);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -72,6 +71,7 @@ export default function LinkParentModal({
 
   const setField = (field: keyof LinkParentForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+    setServerError(null);
     setErrors((current) => {
       if (!(field in current)) return current;
       const next = { ...current };
@@ -83,23 +83,35 @@ export default function LinkParentModal({
   const handleSend = () => {
     const nextErrors: LinkParentErrors = {};
     if (form.name.trim() === "") {
-      nextErrors.name = "Ingresa el nombre del padre/madre";
+      nextErrors.name = "Ingresá el nombre del padre/madre";
     }
-    if (!EMAIL_PATTERN.test(form.email)) {
-      nextErrors.email = "Ingresa un email válido";
+    if (!EMAIL_PATTERN.test(form.email.trim())) {
+      nextErrors.email = "Ingresá un email válido";
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    onSubmit({
-      id: slugify(form.name),
-      name: form.name.trim(),
-      relation: form.relation,
-      status: "pending",
+    setServerError(null);
+    startTransition(async () => {
+      const result = await createInvitation({
+        childId,
+        fullName: form.name.trim(),
+        email: form.email.trim(),
+        relationship: form.relation,
+      });
+
+      if (!result.ok) {
+        setServerError(result.error);
+        return;
+      }
+
+      setInviteCode(result.code);
+      setSentTo(result.email);
+      onInvited();
     });
-    setForm(initialForm);
-    setErrors({});
   };
+
+  const isSent = inviteCode !== null;
 
   return (
     <div
@@ -171,9 +183,12 @@ export default function LinkParentModal({
             value={form.name}
             onChange={(event) => setField("name", event.target.value)}
             aria-invalid={Boolean(errors.name)}
+            disabled={isPending || isSent}
             className={`${inputClass} mb-[18px]`}
           />
-          {errors.name && <div className={`${errorClass} mb-[18px]`}>{errors.name}</div>}
+          {errors.name && (
+            <div className={`${errorClass} mb-[18px]`}>{errors.name}</div>
+          )}
 
           <div className={labelClass}>EMAIL</div>
           <input
@@ -182,9 +197,12 @@ export default function LinkParentModal({
             value={form.email}
             onChange={(event) => setField("email", event.target.value)}
             aria-invalid={Boolean(errors.email)}
+            disabled={isPending || isSent}
             className={`${inputClass} mb-[18px]`}
           />
-          {errors.email && <div className={`${errorClass} mb-[18px]`}>{errors.email}</div>}
+          {errors.email && (
+            <div className={`${errorClass} mb-[18px]`}>{errors.email}</div>
+          )}
 
           <div className="mb-5">
             <div className="mb-[10px] text-[12px] font-extrabold tracking-[.7px] text-[#94887B]">
@@ -198,11 +216,12 @@ export default function LinkParentModal({
                     key={pill.value}
                     type="button"
                     aria-pressed={selected}
+                    disabled={isPending || isSent}
                     onClick={() => setField("relation", pill.value)}
                     className={
                       selected
-                        ? "flex-1 rounded-full border-[1.5px] border-[#9FB8EC] bg-[#CCD8F4] px-[11px] py-[11px] text-[14px] font-extrabold text-[#4E72C8]"
-                        : "flex-1 rounded-full border-[1.5px] border-[#ECE0D0] bg-[#FFFDF9] px-[11px] py-[11px] text-[14px] font-extrabold text-[#6E6359]"
+                        ? "flex-1 rounded-full border-[1.5px] border-[#9FB8EC] bg-[#CCD8F4] px-[11px] py-[11px] text-[14px] font-extrabold text-[#4E72C8] disabled:opacity-60"
+                        : "flex-1 rounded-full border-[1.5px] border-[#ECE0D0] bg-[#FFFDF9] px-[11px] py-[11px] text-[14px] font-extrabold text-[#6E6359] disabled:opacity-60"
                     }
                   >
                     {pill.label}
@@ -212,39 +231,89 @@ export default function LinkParentModal({
             </div>
           </div>
 
-          <div className="mb-5 rounded-[16px] border-[1.5px] border-dashed border-[#E6D08A] bg-[#FBF1D6] p-[18px] text-center">
-            <div className="mb-2 text-[12px] font-extrabold tracking-[.7px] text-[#A88526]">
-              CÓDIGO DE INVITACIÓN
+          <div
+            className={`mb-5 rounded-[16px] border-[1.5px] border-dashed p-[18px] text-center ${
+              isSent
+                ? "border-[#B9DCC4] bg-[#E7F4EB]"
+                : "border-[#E6D08A] bg-[#FBF1D6]"
+            }`}
+          >
+            <div
+              className={`mb-2 text-[12px] font-extrabold tracking-[.7px] ${
+                isSent ? "text-[#3E9B6C]" : "text-[#A88526]"
+              }`}
+            >
+              {isSent ? "CÓDIGO DE INVITACIÓN" : "CÓDIGO DE INVITACIÓN"}
             </div>
-            <div className="font-display text-[34px] font-semibold tracking-[7px] text-[#8A7234]">
-              {inviteCode}
+            <div
+              className={`font-display text-[34px] font-semibold tracking-[7px] ${
+                isSent ? "text-[#2F7D55]" : "text-[#B9A469]"
+              }`}
+            >
+              {isSent ? inviteCode : "— — — — —"}
             </div>
-            <div className="mt-1.5 text-[13px] text-[#A88526]">
-              Vence en 7 días
+            <div
+              className={`mt-1.5 text-[13px] ${
+                isSent ? "text-[#3E9B6C]" : "text-[#A88526]"
+              }`}
+            >
+              {isSent ? "Vence en 7 días" : "Se genera y envía por email"}
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSend}
-            className="flex w-full items-center justify-center gap-[9px] rounded-[14px] bg-[linear-gradient(180deg,#F4977E,#EE8164)] py-[14px] text-[15.5px] font-extrabold text-white shadow-[0_10px_22px_-8px_rgba(238,129,100,.7)]"
-          >
-            <svg
-              width="19"
-              height="19"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#fff"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+          {serverError && (
+            <div
+              role="alert"
+              className="mb-5 rounded-[12px] border border-[#F2C6BD] bg-[#FCE8E4] px-4 py-3 text-[13px] font-bold text-[#B25249]"
             >
-              <path d="m22 2-7 20-4-9-9-4z" />
-              <path d="M22 2 11 13" />
-            </svg>
-            Enviar invitación
-          </button>
+              {serverError}
+            </div>
+          )}
+
+          {isSent ? (
+            <div aria-live="polite">
+              <div className="mb-4 rounded-[12px] bg-[#E7F4EB] px-4 py-3 text-[13.5px] leading-[1.5] text-[#2F7D55]">
+                Invitación enviada a <strong>{sentTo}</strong>. Cuando active su
+                cuenta, va a aparecer como padre vinculado.
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full rounded-[14px] bg-ink py-[14px] text-[15.5px] font-extrabold text-white"
+              >
+                Listo
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={isPending}
+              className="flex w-full items-center justify-center gap-[9px] rounded-[14px] bg-[linear-gradient(180deg,#F4977E,#EE8164)] py-[14px] text-[15.5px] font-extrabold text-white shadow-[0_10px_22px_-8px_rgba(238,129,100,.7)] disabled:opacity-70"
+            >
+              {isPending ? (
+                "Enviando invitación…"
+              ) : (
+                <>
+                  <svg
+                    width="19"
+                    height="19"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#fff"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m22 2-7 20-4-9-9-4z" />
+                    <path d="M22 2 11 13" />
+                  </svg>
+                  Enviar invitación
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -4,7 +4,9 @@ import {
   allergyBadge,
   avatarFor,
 } from "@/components/kid-card";
-import KidParentsCard from "@/components/kid-parents-card";
+import KidParentsCard, {
+  type KidParentEntry,
+} from "@/components/kid-parents-card";
 
 export type KidProfileData = {
   id: string;
@@ -35,7 +37,15 @@ function formatEnrolledAt(iso: string): string {
   });
 }
 
-export default function KidProfile({ child }: { child: KidProfileData }) {
+export default function KidProfile({
+  child,
+  parents,
+  canInvite,
+}: {
+  child: KidProfileData;
+  parents: KidParentEntry[];
+  canInvite: boolean;
+}) {
   const age = ageFromBirthDate(child.birthDate);
   const avatar = avatarFor(child.id);
   const initial = child.fullName.trim().charAt(0).toUpperCase();
@@ -130,7 +140,12 @@ export default function KidProfile({ child }: { child: KidProfileData }) {
             Resumen del día
           </a>
 
-          <KidParentsCard childId={child.id} childName={child.fullName} initialParents={[]} />
+          <KidParentsCard
+            childId={child.id}
+            childName={child.fullName}
+            parents={parents}
+            canInvite={canInvite}
+          />
         </div>
       </div>
     </div>
