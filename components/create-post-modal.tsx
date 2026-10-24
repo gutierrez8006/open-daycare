@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { postKinds } from "@/utils/post-kinds";
 import type { FeedPostKid, PostKind } from "@/utils/post-kinds";
 
@@ -13,6 +13,16 @@ type CreatePostErrors = {
   kids?: string;
   kinds?: string;
   description?: string;
+  photos?: string;
+};
+
+const ACCEPTED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_PHOTOS = 10;
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // 4MB
+
+type PendingPhoto = {
+  file: File;
+  previewUrl: string;
 };
 
 type CreatePostModalProps = {
@@ -44,7 +54,9 @@ export default function CreatePostModal({
   const [selectedKids, setSelectedKids] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<PostKind[]>([]);
   const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [errors, setErrors] = useState<CreatePostErrors>({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const sortedKids = [...kids].sort((a, b) =>
     a.fullName.localeCompare(b.fullName, "es"),
@@ -54,6 +66,10 @@ export default function CreatePostModal({
     setSelectedKids([]);
     setSelectedKinds([]);
     setDescription("");
+    setPhotos((current) => {
+      for (const photo of current) URL.revokeObjectURL(photo.previewUrl);
+      return [];
+    });
     setErrors({});
   }, []);
 
@@ -120,6 +136,45 @@ export default function CreatePostModal({
     clearError("kinds");
   };
 
+  const addPhotos = (incoming: FileList | null) => {
+    clearError("photos");
+    if (!incoming || incoming.length === 0) return;
+
+    const files = Array.from(incoming);
+    const errorPhoto = (message: string) =>
+      setErrors((current) => ({ ...current, photos: message }));
+
+    if (files.some((file) => !ACCEPTED_MIME.has(file.type))) {
+      errorPhoto("Solo podés subir imágenes JPG, PNG o WebP.");
+      return;
+    }
+    if (files.some((file) => file.size > MAX_PHOTO_BYTES)) {
+      errorPhoto("Cada foto no puede superar 4MB.");
+      return;
+    }
+    if (photos.length + files.length > MAX_PHOTOS) {
+      errorPhoto("Máximo 10 fotos.");
+      return;
+    }
+
+    setPhotos((current) => [
+      ...current,
+      ...files.map((file) => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })),
+    ]);
+  };
+
+  const removePhoto = (index: number) => {
+    clearError("photos");
+    setPhotos((current) => {
+      const target = current[index];
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((_, position) => position !== index);
+    });
+  };
+
   const handlePublish = () => {
     const nextErrors: CreatePostErrors = {};
     if (selectedKids.length === 0) {
@@ -130,6 +185,12 @@ export default function CreatePostModal({
     }
     if (description.trim() === "") {
       nextErrors.description = "Escribí una descripción";
+    }
+    if (
+      selectedKinds.includes("photo") &&
+      photos.length === 0
+    ) {
+      nextErrors.photos = "El tipo Foto requiere al menos una imagen.";
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -150,6 +211,18 @@ export default function CreatePostModal({
         className="w-full max-w-[580px] overflow-hidden rounded-[24px] border border-[#ECE0D0] bg-[#FBF4EC] shadow-[0_20px_50px_-24px_rgba(63,54,46,.35)]"
         onClick={(event) => event.stopPropagation()}
       >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          aria-label="Agregar fotos"
+          onChange={(event) => {
+            addPhotos(event.target.files);
+            event.target.value = "";
+          }}
+          className="hidden"
+        />
         <div className="flex items-center justify-between border-b border-[#ECE0D0] px-[26px] py-5">
           <button
             type="button"
@@ -269,43 +342,64 @@ export default function CreatePostModal({
             <div className={`${errorClass} mb-[22px]`}>{errors.description}</div>
           )}
 
-          <div className={labelClass}>FOTOS</div>
-          <div className="flex gap-3">
-            <div className="flex h-[96px] w-[96px] items-center justify-center rounded-[14px] border border-[#ECE0D0] bg-[#F4ECE1] text-[#CBB89F]">
-              <svg
-                width="26"
-                height="26"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="9" cy="9" r="2" />
-                <path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 21" />
-              </svg>
+          <div className="flex items-baseline justify-between">
+            <div className={labelClass}>FOTOS</div>
+            <div className="text-[12px] font-bold text-[#94887B]">
+              {photos.length}/10
             </div>
-            <button
-              type="button"
-              className="flex h-[96px] w-[96px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-[#DBCDBA] bg-[#F4ECE1] text-[12px] text-[#B0A290]"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#C5503A"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span>Agregar</span>
-            </button>
           </div>
+          <div
+            className={`flex flex-wrap gap-3 ${errors.photos ? "mb-1.5" : ""}`}
+          >
+            {photos.map((photo, index) => {
+              return (
+                <div
+                  key={photo.previewUrl}
+                  className="relative h-[96px] w-[96px]"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.previewUrl}
+                    alt={`Foto ${index + 1} para publicar`}
+                    className="h-full w-full rounded-[14px] object-cover"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Quitar foto ${index + 1}`}
+                    onClick={() => removePhoto(index)}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[#ECE0D0] bg-white text-[13px] font-extrabold text-[#D9583C]"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+            {photos.length < MAX_PHOTOS && (
+              <button
+                type="button"
+                aria-label="Agregar foto"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-[96px] w-[96px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-[#DBCDBA] bg-[#F4ECE1] text-[12px] text-[#B0A290]"
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#C5503A"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span>Agregar</span>
+              </button>
+            )}
+          </div>
+          {errors.photos && (
+            <div className={errorClass}>{errors.photos}</div>
+          )}
         </div>
       </div>
     </div>

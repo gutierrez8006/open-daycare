@@ -77,3 +77,13 @@ export function formatAudience(names: string[]): string {
   if (names.length <= 3) return names.join(", ");
   return `${names.slice(0, 3).join(", ")} +${names.length - 3}`;
 }
+
+/** Contrato del Server Action `createPost` (SPEC 13) */
+export type CreatePostInput = {
+  kinds: PostKind[]; // 1..7 válidos
+  childIds: string[]; // uuids; el usuario ve esos niños por RLS
+  description: string; // trim no vacío
+  media: { storagePath: string; position: number }[]; // 0..10; kinds con "photo" ⇒ ≥ 1
+};
+
+export type CreatePostResult = { ok: true } | { ok: false; error: string };

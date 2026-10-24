@@ -223,6 +223,19 @@ type CreatePostResult = { ok: true } | { ok: false; error: string }; // español
 | `<img>` plain en vez de `next/image` (dominio dinámico de Storage + firma por request) | Firmas por request ok; `next/image` requiere dominio estático o optimizador. Si el lint `@next/next/no-img-element` molesta, se deshabilita puntual en el file con comentario de justificación. |
 | Build falla en `/_global-error` (`InvariantError: Expected workStore to be initialized`) | Bug preexistente del project (documentado en SPEC 12), no atribuible a este spec. Gates reales: `lint` + `tsc --noEmit` + Playwright. |
 
+## Deviación estructural (aprobada in-session): RPC `public.create_post`
+
+El Data model original decía "INSERT en transacción desde el Server Action", pero
+`@supabase/supabase-js` no ofrece transacciones multi-statement: un insert secuencial
+deja posts huérfanos si falla `post_children`/`post_media` y la compensación necesitaría
+una policy DELETE fuera de alcance. Se usa el patrón RPC de SPEC 12: **el action delega
+en una función `SECURITY DEFINER` atomicá** (insert validado de las 3 filas en un solo
+statement transaccional). El SQL sigue en la conversación y en este repo (esta
+desviación). Thrift de validación:
+
+- En la RPC (fuente de verdad): identidad (`auth.uid()` + `users.role in ('staff','admin')` + `status='active'`), children del daycare del autor (JOIN `rooms.daycare_id`), prefix de `storagePath` = `daycare_id/`, positions 1..10 únicas, ≤10 fotos, kind `photo` exige media, `photo_consent=false` bloquea (error con nombre del niño), errores de datos = español genérico, `exception others` → mensaje controlado. Cada unidad de identidad, no de RLS.
+- En el action (`app/(app)/actions.ts`): saneo barato del payload antes de llamar a la RPC (dedup/filtros), revalidatePath("/") solo con `ok: true`.
+
 ## What is **not** in this spec
 
 - Pantalla `/avisos` y todo lo aislado por kind.
