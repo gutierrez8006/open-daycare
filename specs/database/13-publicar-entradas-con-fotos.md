@@ -106,16 +106,23 @@ insert into storage.buckets (id, name, public)
 values ('posts-media', 'posts-media', false)
 on conflict (id) do nothing;
 
+alter storage.buckets of (id = 'posts-media') set file_size_limit = 4194304, allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+
 -- Policies sobre storage.objects para bucket_id = 'posts-media':
 -- INSERT (posts_media_insert_staff): authenticated con rol staff/admin via users;
 --   (storage.foldername(name))[1] = u.daycare_id::text
---   mimetype in ('image/jpeg','image/png','image/webp')
---   (metadata->>'size')::bigint <= 4194304
 -- SELECT (posts_media_select_staff): mismo encuadre por foldername.
 -- DELETE (posts_media_delete_staff): mismo encuadre + owner_id =
 --   (select auth.uid())::text — en el schema actual storage.objects.owner_id es text,
 --   el literal uuid del draft falla con 42883. DELETE habilita la limpieza
 --   best-effort de archivos huérfanos cuando createPost falla.
+--
+-- DESVÍO de la fase de implementación (probado con probes reales):
+-- el storage-api evalúa la policy INSERT con metadata que NO incluye
+-- `size`, es decir: el guard de tamaño en RLS denegaba uploads válidos
+-- (fail-closed invertido). El límite 4MB por foto y la lista de mimetypes
+-- viven NATIVOS del bucket (file_size_limit + allowed_mime_types, respuestas
+-- 413/415 verificadas); el RLS queda para identidad + scope.
 ```
 
 Path de cada foto: `{daycare_id}/{crypto.randomUUID()}.{ext}` — se sube ANTES de crear el post (no hay row_id todavía; el scoping lo da el primer segmento). Sin estado `draft`.

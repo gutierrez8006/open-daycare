@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postKinds } from "@/utils/post-kinds";
 import type { FeedPostKid, PostKind } from "@/utils/post-kinds";
+import { createClient as createBrowserSupabaseClient } from "@/utils/supabase/client";
+import { createPost } from "@/app/(app)/actions";
+
+const POSTS_MEDIA_BUCKET = "posts-media";
 
 const labelClass =
   "mb-[10px] text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
@@ -56,6 +60,7 @@ export default function CreatePostModal({
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [errors, setErrors] = useState<CreatePostErrors>({});
+  const [publishing, setPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const sortedKids = [...kids].sort((a, b) =>
@@ -175,7 +180,66 @@ export default function CreatePostModal({
     });
   };
 
+  const setPhotoError = (message: string) =>
+    setErrors((current) => ({ ...current, photos: message }));
+
+  const uploadAndPublish = async () => {
+    if (publishing) return;
+    setPublishing(true);
+
+    const supabase = createBrowserSupabaseClient();
+    const uploadedPaths: string[] = [];
+    const cleanup = async () => {
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from(POSTS_MEDIA_BUCKET).remove(uploadedPaths);
+      }
+    };
+
+    try {
+      const media: { storagePath: string; position: number }[] = [];
+      for (let index = 0; index < photos.length; index += 1) {
+        const photo = photos[index];
+        const extension = photo.file.name.includes(".")
+          ? photo.file.name.split(".").pop()!
+          : "jpg";
+        const storagePath = `${daycareId}/${crypto.randomUUID()}.${extension}`;
+        const { error } = await supabase.storage
+          .from(POSTS_MEDIA_BUCKET)
+          .upload(storagePath, photo.file, { contentType: photo.file.type });
+        if (error) {
+          throw "upload";
+        }
+        uploadedPaths.push(storagePath);
+        media.push({ storagePath, position: index + 1 });
+      }
+
+      const result = await createPost({
+        kinds: selectedKinds,
+        childIds: selectedKids,
+        description,
+        media,
+      });
+
+      if (!result.ok) {
+        await cleanup();
+        setPhotoError(result.error);
+        return;
+      }
+
+      // La subida y el insert quedaron completos; ninguna foto queda huérfana.
+      resetForm();
+      onPublish();
+      return;
+    } catch {
+      await cleanup();
+      setPhotoError("No se pudieron subir las fotos. Intentá de nuevo.");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const handlePublish = () => {
+    if (publishing) return;
     const nextErrors: CreatePostErrors = {};
     if (selectedKids.length === 0) {
       nextErrors.kids = "Elegí al menos un niño";
@@ -186,18 +250,13 @@ export default function CreatePostModal({
     if (description.trim() === "") {
       nextErrors.description = "Escribí una descripción";
     }
-    if (
-      selectedKinds.includes("photo") &&
-      photos.length === 0
-    ) {
+    if (selectedKinds.includes("photo") && photos.length === 0) {
       nextErrors.photos = "El tipo Foto requiere al menos una imagen.";
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    // Step 10: valida fotos, sube al bucket y llama createPost
-    void daycareId;
-    resetForm();
-    onPublish();
+
+    void uploadAndPublish();
   };
 
   return (
@@ -237,9 +296,12 @@ export default function CreatePostModal({
           <button
             type="button"
             onClick={handlePublish}
-            className="text-[15px] font-extrabold text-[#D9583C]"
+            disabled={publishing}
+            className={`text-[15px] font-extrabold ${
+              publishing ? "text-[#B6A99B]" : "text-[#D9583C]"
+            }`}
           >
-            Publicar
+            {publishing ? "Publicando…" : "Publicar"}
           </button>
         </div>
 
