@@ -84,6 +84,7 @@ npm run lint    # eslint plano (next lint ya no existe)
 ## Agents
 
 - **spec-verifier** (`.opencode/agents/spec-verifier.md`): verifica, corrige y marca los criterios de aceptación de `specs/**/*.md` (incluye `specs/database/`). Usa Context7 para APIs de Next.js y Playwright para verificación visual. Corre `npm run lint` y `npm run build`, compara screenshots contra mockups, y actualiza los checkboxes del spec con evidencia concreta. No commitea.
+- **db-security-auditor** (`.opencode/agents/db-security-auditor.md`): audita RLS/policies Supabase para prevenir fugas entre niños/padres + buenas prácticas Postgres/Supabase. Solo lectura: no aplica migraciones ni edita código; entrega tabla de hallazgos con severidad, evidencia y SQL propuesto.
 
 ## MCPs
 
