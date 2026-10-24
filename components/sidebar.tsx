@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import CreatePostModal from "@/components/create-post-modal";
+import type { FeedPostKid } from "@/utils/posts";
 import { signOutAction } from "@/app/(auth)/login/actions";
 
 export type UserInfo = {
@@ -144,7 +145,15 @@ function SidebarContent({
   );
 }
 
-export default function Sidebar({ userInfo }: { userInfo?: UserInfo | null }) {
+export default function Sidebar({
+  userInfo,
+  kids,
+  daycareId,
+}: {
+  userInfo?: UserInfo | null;
+  kids: FeedPostKid[];
+  daycareId: string;
+}) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const closeDrawer = () => setDrawerOpen(false);
@@ -207,6 +216,8 @@ export default function Sidebar({ userInfo }: { userInfo?: UserInfo | null }) {
         open={open}
         onClose={() => setOpen(false)}
         onPublish={() => setOpen(false)}
+        kids={kids}
+        daycareId={daycareId}
       />
     </>
   );

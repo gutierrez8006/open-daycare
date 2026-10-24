@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { children } from "@/data/children";
-
-const roomKids = children.slice(0, 3);
-const allKidIds = roomKids.map((child) => child.id);
+import { postKinds } from "@/utils/post-kinds";
+import type { FeedPostKid, PostKind } from "@/utils/post-kinds";
 
 const labelClass =
   "mb-[10px] text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
@@ -17,38 +15,40 @@ type CreatePostErrors = {
   description?: string;
 };
 
-type PostKind =
-  | "meal"
-  | "nap"
-  | "activity"
-  | "achievement"
-  | "mood"
-  | "photo"
-  | "announcement";
+type CreatePostModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onPublish: () => void;
+  kids: FeedPostKid[];
+  daycareId: string;
+};
 
-const postKinds: { id: PostKind; label: string; bg: string; fg: string }[] = [
-  { id: "meal", label: "Comida", bg: "#9A7B1E", fg: "#FFFFFF" },
-  { id: "nap", label: "Siesta", bg: "#E7DCF6", fg: "#7B5FC0" },
-  { id: "activity", label: "Actividad", bg: "#2E89A6", fg: "#FFFFFF" },
-  { id: "achievement", label: "Logro", bg: "#CFEBD8", fg: "#3E9B6C" },
-  { id: "mood", label: "Ánimo", bg: "#F9D2DE", fg: "#C56486" },
-  { id: "photo", label: "Foto", bg: "#FBD8CC", fg: "#D9684A" },
-  { id: "announcement", label: "Anuncio", bg: "#CCD8F4", fg: "#4E72C8" },
+/* Paleta de avatar del mockup (SPEC 06), ciclando por índice para niños reales */
+const kidAvatarPalette = [
+  { bg: "#A9D9E8", fg: "#1F7A93" },
+  { bg: "#F4B8CC", fg: "#B5587F" },
+  { bg: "#B9DEC4", fg: "#3E9B6C" },
 ];
+
+function initialOf(fullName: string): string {
+  return fullName.trim()[0]?.toUpperCase() ?? "?";
+}
 
 export default function CreatePostModal({
   open,
   onClose,
   onPublish,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onPublish: () => void;
-}) {
+  kids,
+  daycareId,
+}: CreatePostModalProps) {
   const [selectedKids, setSelectedKids] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<PostKind[]>([]);
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState<CreatePostErrors>({});
+
+  const sortedKids = [...kids].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName, "es"),
+  );
 
   const resetForm = useCallback(() => {
     setSelectedKids([]);
@@ -101,12 +101,15 @@ export default function CreatePostModal({
 
   const toggleAllKids = () => {
     setSelectedKids((current) =>
-      current.length === roomKids.length ? [] : [...allKidIds],
+      current.length === sortedKids.length
+        ? []
+        : sortedKids.map((kid) => kid.id),
     );
     clearError("kids");
   };
 
-  const allKidsSelected = selectedKids.length === roomKids.length;
+  const allKidsSelected =
+    sortedKids.length > 0 && selectedKids.length === sortedKids.length;
 
   const toggleKind = (kind: PostKind) => {
     setSelectedKinds((current) =>
@@ -130,6 +133,8 @@ export default function CreatePostModal({
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+    // Step 10: valida fotos, sube al bucket y llama createPost
+    void daycareId;
     resetForm();
     onPublish();
   };
@@ -167,46 +172,54 @@ export default function CreatePostModal({
 
         <div className="px-[26px] py-6">
           <div className={labelClass}>PARA</div>
-          <div
-            className={`flex flex-wrap gap-[9px] ${errors.kids ? "mb-1.5" : "mb-[22px]"}`}
-          >
-            {roomKids.map((child) => {
-              const selected = selectedKids.includes(child.id);
-              return (
-                <button
-                  key={child.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => toggleKid(child.id)}
-                  className={`flex items-center gap-2 rounded-full border-[1.5px] py-1.5 pl-1.5 pr-3.5 text-[14px] font-bold ${
-                    selected
-                      ? "border-[#3F362E] bg-[#3F362E] text-white"
-                      : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
-                  }`}
-                >
-                  <span
-                    className="flex h-[26px] w-[26px] items-center justify-center rounded-full font-display text-[13px] font-semibold"
-                    style={{ background: child.avatar.bg, color: child.avatar.fg }}
-                  >
-                    {child.initial}
-                  </span>
-                  {child.name.split(" ")[0]}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              aria-pressed={allKidsSelected}
-              onClick={toggleAllKids}
-              className={`rounded-full border-[1.5px] px-4 py-1.5 text-[14px] font-bold ${
-                allKidsSelected
-                  ? "border-[#3F362E] bg-[#3F362E] text-white"
-                  : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
-              }`}
+          {sortedKids.length === 0 ? (
+            <div className={`${errorClass} mb-[22px]`}>
+              No hay niños cargados todavía
+            </div>
+          ) : (
+            <div
+              className={`flex flex-wrap gap-[9px] ${errors.kids ? "mb-1.5" : "mb-[22px]"}`}
             >
-              Toda la sala
-            </button>
-          </div>
+              {sortedKids.map((kid, index) => {
+                const selected = selectedKids.includes(kid.id);
+                const avatar =
+                  kidAvatarPalette[index % kidAvatarPalette.length];
+                return (
+                  <button
+                    key={kid.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => toggleKid(kid.id)}
+                    className={`flex items-center gap-2 rounded-full border-[1.5px] py-1.5 pl-1.5 pr-3.5 text-[14px] font-bold ${
+                      selected
+                        ? "border-[#3F362E] bg-[#3F362E] text-white"
+                        : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
+                    }`}
+                  >
+                    <span
+                      className="flex h-[26px] w-[26px] items-center justify-center rounded-full font-display text-[13px] font-semibold"
+                      style={{ background: avatar.bg, color: avatar.fg }}
+                    >
+                      {initialOf(kid.fullName)}
+                    </span>
+                    {kid.fullName.split(" ")[0]}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                aria-pressed={allKidsSelected}
+                onClick={toggleAllKids}
+                className={`rounded-full border-[1.5px] px-4 py-1.5 text-[14px] font-bold ${
+                  allKidsSelected
+                    ? "border-[#3F362E] bg-[#3F362E] text-white"
+                    : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
+                }`}
+              >
+                Todos
+              </button>
+            </div>
+          )}
           {errors.kids && (
             <div className={`${errorClass} mb-[22px]`}>{errors.kids}</div>
           )}

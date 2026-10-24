@@ -1,5 +1,5 @@
-import type { FeedPost } from "@/utils/posts";
-import { postKinds } from "@/utils/posts";
+import type { FeedPost } from "@/utils/post-kinds";
+import { postKinds } from "@/utils/post-kinds";
 
 export default function PostCard({ post }: { post: FeedPost }) {
   const kinds = postKinds.filter((kind) => post.kindIds.includes(kind.id));
