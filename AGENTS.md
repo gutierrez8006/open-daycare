@@ -12,9 +12,22 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Estado del proyecto
 
-Next.js 16.3.6 (App Router, React 19.2, TypeScript strict, Tailwind v4) scaffolteado con `create-next-app` y **prácticamente sin construir**: `app/page.tsx` sigue siendo el boilerplate de CNA y no hay rutas, componentes ni tests. La única capa de datos es el cliente Supabase SSR (`utils/supabase/` + `proxy.ts`, ver "Acceso a datos"). `app/layout.tsx` es lo único modificado (ya usa `LayoutProps<"/">`).
+Next.js 16.3.6 (App Router, React 19.2, TypeScript strict, Tailwind v4). La app de guardería (personal y familias) **está en construcción con datos reales** (Supabase Auth + BD + Storage): no es el scaffold inicial, pero tampoco estar completa (faltan pantallas de los mockups: resumen del día, avisos, detalle de publicación, etc.).
 
-El producto (app de guardería: personal y familias) **solo existe como mockups** en `references/`. Empieza por ahí, no por el código.
+### Rutas implementadas
+
+- `app/(auth)/login` y `app/(auth)/activate-account` — login real con Supabase Auth (Server Actions: `loginAction`, `signOutAction`) y activación de cuenta por código de invitación (consume `invitations`, crea el padre en `users`/`parent_children`).
+- `app/(staff)/staff` — feed real (`getFeedPosts()`), `staff/kids` y `staff/kids/[id]` con Server Actions: agregar niño (INSERT en `children`), vincular padre (invitación con código por email vía Resend), y "Nueva publicación" con fotos (upload al bucket privado desde el browser client + `createPost`).
+- `app/(familia)/familia` y `familia/cuenta` — **placeholders mínimos** (SPEC `role-based-panel-access`); el feed familiar real es un change pendiente.
+- **No existe `app/page.tsx`**: `/` resuelve rol desde el `proxy` (redirect a `/staff` o `/familia`); usuario autenticado sin rol conocido termina en 404 por diseño, no arreglarlo con un page.
+
+### Estructura
+
+- `components/` — UI del producto (sidebar, `post-card`, `create-post-modal`, `add-kid-modal`, `link-parent-modal`, `activate-account-form`, `kid-*`, etc.).
+- `utils/` — capa de dominio + datos: `posts.ts`, `current-daycare.ts`, `post-kinds.ts`, `email/invitations.ts` (Resend), más `supabase/` (ver "Acceso a datos").
+- `data/children.ts` — resto del era-mock, hoy solo exporta `allergyColors`/`allergyLabels`/`Allergy` que usa `components/kid-card.tsx`. No crecer desde ahí: datos reales van de la BD.
+
+El `references/` (mockups) sigue siendo la especificación visual para las pantallas pendientes, no la fuente de la existentes (esas ya implementadas viven en specs).
 
 ## Comandos
 
@@ -43,18 +56,19 @@ npm run lint    # eslint plano (next lint ya no existe)
 - `references/pantallas/*.dc.html` — **16 mockups** de las pantallas: `login`, `activar-cuenta`, `index`, `feed`, `ninos`, `perfil-nino`, `agregar-nino`, `avisos`, `crear-publicacion`, `detalle-publicacion`, `resumen-dia`, `foto`, `mi-cuenta`, `familia-feed`, `familia-cuenta`, `vincular-padre`. Se abren en el navegador (o vía Playwright MCP), no se compilan.
 - `references/pantallas/support.js` es un runtime **generado** (`GENERATED from dc-runtime/src/*.ts — do not edit`). No lo toques.
 - Los mockups traen **estilos inline y su propia paleta**, no clases de Tailwind: Nunito (cuerpo) + Fredoka (display) por Google Fonts, fondo `#f6ecdf`, texto `#3f362e`, card `#fffdf9`, borde `#ece0d0`, acentos `#f2937a` / `#d9583c` / `#2e89a6`. Paratailwindear hay que **traducir** esos valores, no copiar markup.
-- `app/globals.css` todavía tiene la paleta zinc y Geist del scaffold → el port del design system está pendiente.
+- El port del design system ya está hecho: `app/globals.css` tiene los tokens del mockup (Nunito/Fredoka en `@theme inline`, paleta arriba) — agregá tokens nuevos ahí, no colores crudos en componentes.
 - `references/screenshots/*.png` son estados alternativos/antiguos de algunas de esas mismas pantallas; usalos como referencia secundaria, el `.dc.html` manda.
 
 ## Convenciones
 
 - Alias `@/*` → raíz del repo.
 - Tailwind v4 sin `tailwind.config.js`: los tokens se declaran en `app/globals.css` con `@theme inline`.
-- `.env*` y `next-env.d.ts` están gitignored. Env vars activas: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (valores reales solo en `.env.local`, nunca commiteado; placeholders en `.env.template`).
+- `.env*` y `next-env.d.ts` están gitignored. Env vars activas: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` y `NEXT_PUBLIC_APP_URL` (valores reales solo en `.env.local`, nunca commiteado; placeholders en `.env.template`).
 - Todo el copy del producto está en **español**; las rutas que deriven de los mockups también.
 
 ## Base de datos (Supabase)
 
+- **Estado del esquema** (a 2026-10-25, según specs/database 07-13): 9 tablas en `public` — `daycares`, `users` (enums `user_role`/`user_status`), `rooms`, `children`, `invitations`, `parent_children`, `posts`, `post_children`, `post_media` — más enums de `_kind`/`_status` y el helper `private.is_staff_of_daycare` (SECURITY DEFINER). Bucket **privado** de fotos de publicaciones (upload directo del browser, máx 10 fotos × 4MB por post; URLs servidas por el propio bucket). Toda tabla con RLS habilitado y policies por guardería.
 - **Toda manipulación de la base de datos pasa por migración remota vía MCP**: DDL (`CREATE TABLE`, `ALTER`, indexes, etc.) con `apply_migration(name, query)`; solo lecturas/consultas o DML puntual con `execute_sql`. Nunca se edita esquema desde la consola de Supabase ni con scripts locales.
 - **No existe `supabase/migrations/` local ni stack local** (decidido en spec 07): el historial de migraciones vive únicamente en la BD remota (`supabase_migrations.schema_migrations`). Por eso el nombre de cada migración debe ser único — re-ejecutar el mismo nombre falla con `42P07: relation already exists`.
 - **Antes de crear algo, verificar el estado real**: con `list_tables` / `execute_sql` confirmar si el objeto ya existe (puede venir de una sesión anterior) antes de aplicar una migración. Con `INSERT` de seed, verificar el conteo previo para no duplicar filas.
@@ -68,8 +82,10 @@ npm run lint    # eslint plano (next lint ya no existe)
 - Helpers (alias `@/*`):
   - `utils/supabase/client.ts` → `createBrowserClient` — solo Client Components (`"use client"`).
   - `utils/supabase/server.ts` → `createServerClient` (async, con `await cookies()`) — Server Components, Server Actions y Route Handlers.
-  - `utils/supabase/proxy.ts` (`updateSession`) + `proxy.ts` en raíz — refresco de sesión en cada request vía `getClaims()`. No añadir lógica entre `createServerClient` y `getClaims()`, y no borrar `getClaims()` (provoca logouts aleatorios).
+  - `utils/supabase/proxy.ts` (`updateSession`) + `proxy.ts` en raíz — resolución de sesión y guard de rol en cada request. No añadir lógica entre `createServerClient` y `supabase.auth.getUser()` (ver comentario en el archivo), y no borrar esa llamada (provoca logouts aleatorios).
 - No crear nuevos helpers de cliente Supabase fuera de `utils/supabase/`. No usar `service_role` en código de la app.
+- La **fuente de verdad de autorizaciones es `users.role` en la BD** (leída por request; el rol es mutable: un staff puede pasar a parent). El guard de rol vive en `utils/supabase/proxy.ts` (`updateSession`): `/` redirige a `/staff` o `/familia` según rol, y una ruta ajena al rol vuelve a `/`. Los layouts de cada panel re-verifican el rol antes de renderizar. No añadir lógica entre `createServerClient` y `getUser()` (comentario en el archivo), ni borrar ese refresco de sesión (provoca logouts aleatorios).
+- Emails de invitación se envían desde `utils/email/invitations.ts` con Resend (`RESEND_API_KEY`); no mandar emails por otro lado ni hacer fetch directo a la API de Resend.
 - RLS manda: las queries se ejecutan como el usuario autenticado; si una query devuelve vacío inesperado, revisar policies antes de "arreglar" el código.
 
 ## Spec-driven development
@@ -80,6 +96,13 @@ npm run lint    # eslint plano (next lint ya no existe)
 - Nunca commitees automáticamente: el commit es decisión del usuario. Terminada la implementación, se verifica la lista de criterios de aceptación y recién ahí se cambia el estado a "Implemented".
 - Ambas skills están pineadas en `skills-lock.json` (origen `klerith/fernando-skills`); no las edites a mano.
 - `/spec` exige responder en el mismo idioma del prompt inicial.
+- **Estado de los specs** (a 2026-10-25): Implemented/Implementado 01, 02, 05, 06, 07, 08, 11, 12, 13; Aprobado (pendientes de implementar): 03, 04, 09, 10 — verificar el header de cada spec antes de confiar (03/04 describen pantallas con mock data que luego fueron reemplazadas por specs DB). La referencia del esquema previsto está en `references/db-schema` (carpeta externa `D:\udemy\OpenCode\07-DB-Schema`); no está implementado en la BD, es solo referencia.
+
+## OpenSpec (flujo paralelo)
+
+- Existe un segundo sistema de spec-driven con la CLI `openspec`: carpeta `openspec/` con `config.yaml` (contexto del proyecto) y specs consolidados en `openspec/specs/` (changes archivados en `openspec/changes/archive/YYYY-MM-DD-<slug>/` con `proposal.md`, `design.md`, `tasks.md` y delta de spec).
+- El spec `role-based-panel-access` define el guard de rol actual (proxy + `/` por rol + re-verificación en layouts) — es el spec de referencia para cómo se autoriza por panel.
+- No mezclar artefactos: `/spec` escribe en `specs/`; openspec en `openspec/`. Si el usuario habla de "openspec"/changes, usar ese flujo (CLI `openspec`).
 
 ## Agents
 

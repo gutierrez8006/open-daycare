@@ -11,9 +11,13 @@ schema: spec-driven
 context: |
   App de guardería (daycare) para comunicación entre el personal de la guardería
   y las familias: feed de publicaciones y fotos, perfil de niños, resúmenes del
-  día, avisos, vinculación de padres y cuentas. El producto no tiene código aún:
-  la especificación visual (mockups en references/pantallas/*.dc.html) es la
-  fuente de verdad, no el código. El copy y las rutas van en español.
+  día, avisos, vinculación de padres y cuentas.
+  Implementada en Next.js 16 + Supabase (Auth, BD con RLS, Storage): paneles
+  `(staff)` y `(familia)` con rutas prefijadas /staff y /familia, guard de rol
+  en el proxy (users.role es la fuente de verdad de autorizaciones) y specs en
+  specs/ (+ specs/database/). La especificación visual (mockups en
+  references/pantallas/*.dc.html) manda para las pantallas aún no implementadas.
+  El copy y las rutas van en español.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
