@@ -10,7 +10,7 @@ type Relationship = KidParentEntry["relationship"];
 
 export default async function KidProfilePage({
   params,
-}: PageProps<"/kids/[id]">) {
+}: PageProps<"/staff/kids/[id]">) {
   const { id } = await params;
   if (!UUID_PATTERN.test(id)) notFound();
 

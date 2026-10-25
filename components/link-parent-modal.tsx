@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { createInvitation } from "@/app/(app)/kids/[id]/actions";
+import { createInvitation } from "@/app/(staff)/staff/kids/[id]/actions";
 
 type Relationship = "mother" | "father" | "guardian";
 

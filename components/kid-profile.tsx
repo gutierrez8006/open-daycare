@@ -54,7 +54,7 @@ export default function KidProfile({
   return (
     <div className="mx-auto w-full max-w-[820px] px-10 pb-20 pt-[34px] [line-height:normal]">
       <Link
-        href="/kids"
+        href="/staff/kids"
         className="mb-5 inline-flex items-center gap-[7px] text-[14px] font-bold text-muted-strong"
       >
         <ChevronLeftIcon />

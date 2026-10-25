@@ -213,6 +213,6 @@ export async function createInvitation(
     return { ok: false, error: sent.error };
   }
 
-  revalidatePath(`/kids/${childId}`);
+  revalidatePath(`/staff/kids/${childId}`);
   return { ok: true, code: invitation.code, email };
 }

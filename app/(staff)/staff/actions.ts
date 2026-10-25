@@ -84,6 +84,6 @@ export async function createPost(
     };
   }
 
-  revalidatePath("/");
+  revalidatePath("/staff");
   return { ok: true };
 }

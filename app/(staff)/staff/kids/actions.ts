@@ -95,6 +95,6 @@ export async function createKid(
     return { ok: false, error: GENERIC_ERROR };
   }
 
-  revalidatePath("/kids");
+  revalidatePath("/staff/kids");
   return { ok: true, id: (created as { id: string }).id };
 }
