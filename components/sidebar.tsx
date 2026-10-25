@@ -24,19 +24,19 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     label: "Feed",
-    href: "/",
-    isActive: (pathname) => pathname === "/",
+    href: "/staff",
+    isActive: (pathname) => pathname === "/staff",
     icon: <HomeIcon />,
   },
   {
     label: "Niños",
-    href: "/kids",
+    href: "/staff/kids",
     isActive: (pathname) =>
-      pathname === "/kids" || pathname.startsWith("/kids/"),
+      pathname === "/staff/kids" || pathname.startsWith("/staff/kids/"),
     icon: <ChildrenIcon />,
   },
-  { label: "Avisos", href: "/notices", isActive: (pathname) => pathname === "/notices", icon: <BellIcon /> },
-  { label: "Mi cuenta", href: "/account", isActive: (pathname) => pathname === "/account", icon: <UserIcon /> },
+  { label: "Avisos", href: "/staff/notices", isActive: (pathname) => pathname === "/staff/notices", icon: <BellIcon /> },
+  { label: "Mi cuenta", href: "/staff/account", isActive: (pathname) => pathname === "/staff/account", icon: <UserIcon /> },
 ];
 
 function SidebarContent({
@@ -64,7 +64,7 @@ function SidebarContent({
   return (
     <>
       <Link
-        href="/"
+        href="/staff"
         onClick={onNavigate}
         className="flex items-center gap-[11px] px-2 pb-[22px] pt-1"
       >
@@ -170,7 +170,7 @@ export default function Sidebar({
         >
           <MenuIcon />
         </button>
-        <Link href="/" className="flex h-11 items-center gap-2.5">
+        <Link href="/staff" className="flex h-11 items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[linear-gradient(155deg,#F8C3A8,#F2937A)]">
             <SunIcon />
           </span>

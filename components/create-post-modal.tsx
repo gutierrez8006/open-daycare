@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { postKinds } from "@/utils/post-kinds";
 import type { FeedPostKid, PostKind } from "@/utils/post-kinds";
 import { createClient as createBrowserSupabaseClient } from "@/utils/supabase/client";
-import { createPost } from "@/app/(app)/actions";
+import { createPost } from "@/app/(staff)/staff/actions";
 
 const POSTS_MEDIA_BUCKET = "posts-media";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { createKid } from "@/app/(app)/kids/actions";
+import { createKid } from "@/app/(staff)/staff/kids/actions";
 
 export type AddKidRoom = {
   id: string;

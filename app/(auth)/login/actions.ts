@@ -8,6 +8,9 @@ export type LoginState = {
   error?: string;
 };
 
+const GENERIC_LOGIN_ERROR =
+  "Credenciales inválidas. Revisá tu email y contraseña.";
+
 export async function loginAction(
   _prevState: LoginState,
   formData: FormData,
@@ -16,7 +19,7 @@ export async function loginAction(
   const password = formData.get("password");
 
   if (typeof email !== "string" || email.trim() === "" || typeof password !== "string" || password === "") {
-    return { error: "Credenciales inválidas. Revisá tu email y contraseña." };
+    return { error: GENERIC_LOGIN_ERROR };
   }
 
   const supabase = await createClient();
@@ -27,7 +30,7 @@ export async function loginAction(
   });
 
   if (error) {
-    return { error: "Credenciales inválidas. Revisá tu email y contraseña." };
+    return { error: GENERIC_LOGIN_ERROR };
   }
 
   revalidatePath("/", "layout");
