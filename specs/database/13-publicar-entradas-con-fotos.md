@@ -1,6 +1,6 @@
 # SPEC 13 — Persistencia de publicaciones del staff con fotos y feed real
 
-> **Status:** Aprobado
+> **Status:** Implemented
 > **Depends on:** SPEC 06, SPEC 09, SPEC 10, SPEC 12
 > **Date:** 2026-10-24
 > **Objective:** Conectar el modal "Nueva publicación" a la BD real: tablas `posts`/`post_children`/`post_media` con RLS, bucket privado con upload directo del browser (hasta 10 fotos de 4MB c/u), Server Action de publicación y feed `/` alimentado por datos reales.
@@ -106,13 +106,23 @@ insert into storage.buckets (id, name, public)
 values ('posts-media', 'posts-media', false)
 on conflict (id) do nothing;
 
+alter storage.buckets of (id = 'posts-media') set file_size_limit = 4194304, allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+
 -- Policies sobre storage.objects para bucket_id = 'posts-media':
 -- INSERT (posts_media_insert_staff): authenticated con rol staff/admin via users;
 --   (storage.foldername(name))[1] = u.daycare_id::text
---   mimetype in ('image/jpeg','image/png','image/webp')
---   (metadata->>'size')::bigint <= 4194304
--- SELECT (posts_media_select_staff) y DELETE (posts_media_delete_staff):
---   mismo encuadre por foldername (DELETE para la limpieza best-effort)
+-- SELECT (posts_media_select_staff): mismo encuadre por foldername.
+-- DELETE (posts_media_delete_staff): mismo encuadre + owner_id =
+--   (select auth.uid())::text — en el schema actual storage.objects.owner_id es text,
+--   el literal uuid del draft falla con 42883. DELETE habilita la limpieza
+--   best-effort de archivos huérfanos cuando createPost falla.
+--
+-- DESVÍO de la fase de implementación (probado con probes reales):
+-- el storage-api evalúa la policy INSERT con metadata que NO incluye
+-- `size`, es decir: el guard de tamaño en RLS denegaba uploads válidos
+-- (fail-closed invertido). El límite 4MB por foto y la lista de mimetypes
+-- viven NATIVOS del bucket (file_size_limit + allowed_mime_types, respuestas
+-- 413/415 verificadas); el RLS queda para identidad + scope.
 ```
 
 Path de cada foto: `{daycare_id}/{crypto.randomUUID()}.{ext}` — se sube ANTES de crear el post (no hay row_id todavía; el scoping lo da el primer segmento). Sin estado `draft`.
@@ -171,21 +181,21 @@ type CreatePostResult = { ok: true } | { ok: false; error: string }; // español
 
 ## Acceptance criteria
 
-- [ ] `public.post_kind` existe con exactamente los 7 valores (`meal`…`announcement`) y ningún otro enum nuevo.
-- [ ] `posts`, `post_children` y `post_media` existen con columnas, defaults, checks (`array_length` 1..7, `position` 1..10, `UNIQUE (post_id, position)`), FKs (`CASCADE` de las hijas al post, `RESTRICT` en author/daycare/child) y RLS habilitado; `public` pasa a tener 9 tablas.
-- [ ] Existen las 6 policies de tablas usando `private.is_staff_of_daycare`, y ninguna policy da acceso a un usuario `parent` (probado con claims de parent).
-- [ ] El bucket `posts-media` es privado y las policies de `storage.objects` permiten subir (`INSERT`) solo al staff/admin de la casa, solo con path `{daycare_id}/…`, mime jpeg/png/webp y ≤ 4MB; un intento con otro prefijo, mime o tamaño falla.
-- [ ] El modal muestra los niños reales del daycare del staff (no a los 3 hardcodeados), con toggle individual y botón "Todos" que selecciona/limpia.
-- [ ] FOTOS permite adjuntar 1..10 imágenes con preview y remover individual; 11 fotos, un archivo >4MB o un mime prohibido muestran el error inline correspondiente y bloquean Publicar.
-- [ ] Marcar el kind "Foto" sin adjuntar imágenes muestra error inline y Publicar no envía nada.
-- [ ] "Publicar" con datos válidos sube las fotos, inserta en las 3 tablas (post con `author_id` correcto, post_children por niño elegido, post_media con `position` en el orden de la UI) y al cerrarse el modal el feed `/` ya lo muestra arriba.
-- [ ] Publicar sin fotos (kinds Comida/Siesta/…) crea un post válido sin filas en `post_media`.
-- [ ] Publicar con fotos cuando algún niño elegido tiene `photo_consent = false` muestra error inline (con el nombre del niño), modal abierto y nada insertado.
-- [ ] Si `createPost` falla a mitad de camino, los archivos ya subidos se eliminan del bucket y el error es inline en español, reintentable.
-- [ ] El feed `/` lista los últimos 30 posts reales con remite, hora relativa, lista "Para: …", pills de kinds con colores y grid de fotos por URLs firmadas; con 0 posts muestra el estado vacío.
-- [ ] El feed ya no importa nada de `data/mock.ts` y el archivo ya no existe; `PostType`/`Post` de mock no existen más.
-- [ ] `npm run lint` y `npx next typegen && npx tsc --noEmit` pasan; el acceso a datos usa solo `utils/supabase/*`; sin `service_role` y sin `fetch` directo a la API de Supabase.
-- [ ] `get_advisors` (security y performance) no reporta alertas nuevas atribuibles a este spec; Playwright (desktop + 375px) compara el modal y el feed con los mockups.
+- [x] `public.post_kind` existe con exactamente los 7 valores (`meal`…`announcement`) y ningún otro enum nuevo.
+- [x] `posts`, `post_children` y `post_media` existen con columnas, defaults, checks (`array_length` 1..7, `position` 1..10, `UNIQUE (post_id, position)`), FKs (`CASCADE` de las hijas al post, `RESTRICT` en author/daycare/child) y RLS habilitado; `public` pasa a tener 9 tablas.
+- [x] Existen las 6 policies de tablas usando `private.is_staff_of_daycare`, y ninguna policy da acceso a un usuario `parent` (probado con claims de parent).
+- [x] El bucket `posts-media` es privado y las policies de `storage.objects` permiten subir (`INSERT`) solo al staff/admin de la casa, solo con path `{daycare_id}/…`, mime jpeg/png/webp y ≤ 4MB; un intento con otro prefijo, mime o tamaño falla.
+- [x] El modal muestra los niños reales del daycare del staff (no a los 3 hardcodeados), con toggle individual y botón "Todos" que selecciona/limpia.
+- [x] FOTOS permite adjuntar 1..10 imágenes con preview y remover individual; 11 fotos, un archivo >4MB o un mime prohibido muestran el error inline correspondiente y bloquean Publicar.
+- [x] Marcar el kind "Foto" sin adjuntar imágenes muestra error inline y Publicar no envía nada.
+- [x] "Publicar" con datos válidos sube las fotos, inserta en las 3 tablas (post con `author_id` correcto, post_children por niño elegido, post_media con `position` en el orden de la UI) y al cerrarse el modal el feed `/` ya lo muestra arriba.
+- [x] Publicar sin fotos (kinds Comida/Siesta/…) crea un post válido sin filas en `post_media`.
+- [x] Publicar con fotos cuando algún niño elegido tiene `photo_consent = false` muestra error inline (con el nombre del niño), modal abierto y nada insertado.
+- [x] Si `createPost` falla a mitad de camino, los archivos ya subidos se eliminan del bucket y el error es inline en español, reintentable.
+- [x] El feed `/` lista los últimos 30 posts reales con remite, hora relativa, lista "Para: …", pills de kinds con colores y grid de fotos por URLs firmadas; con 0 posts muestra el estado vacío.
+- [x] El feed ya no importa nada de `data/mock.ts` y el archivo ya no existe; `PostType`/`Post` de mock no existen más.
+- [x] `npm run lint` y `npx next typegen && npx tsc --noEmit` pasan; el acceso a datos usa solo `utils/supabase/*`; sin `service_role` y sin `fetch` directo a la API de Supabase.
+- [x] `get_advisors` (security y performance) no reporta alertas nuevas atribuibles a este spec; Playwright (desktop + 375px) compara el modal y el feed con los mockups.
 
 ## Decisions
 
@@ -220,6 +230,19 @@ type CreatePostResult = { ok: true } | { ok: false; error: string }; // español
 | `<img>` plain en vez de `next/image` (dominio dinámico de Storage + firma por request) | Firmas por request ok; `next/image` requiere dominio estático o optimizador. Si el lint `@next/next/no-img-element` molesta, se deshabilita puntual en el file con comentario de justificación. |
 | Build falla en `/_global-error` (`InvariantError: Expected workStore to be initialized`) | Bug preexistente del project (documentado en SPEC 12), no atribuible a este spec. Gates reales: `lint` + `tsc --noEmit` + Playwright. |
 
+## Deviación estructural (aprobada in-session): RPC `public.create_post`
+
+El Data model original decía "INSERT en transacción desde el Server Action", pero
+`@supabase/supabase-js` no ofrece transacciones multi-statement: un insert secuencial
+deja posts huérfanos si falla `post_children`/`post_media` y la compensación necesitaría
+una policy DELETE fuera de alcance. Se usa el patrón RPC de SPEC 12: **el action delega
+en una función `SECURITY DEFINER` atomicá** (insert validado de las 3 filas en un solo
+statement transaccional). El SQL sigue en la conversación y en este repo (esta
+desviación). Thrift de validación:
+
+- En la RPC (fuente de verdad): identidad (`auth.uid()` + `users.role in ('staff','admin')` + `status='active'`), children del daycare del autor (JOIN `rooms.daycare_id`), prefix de `storagePath` = `daycare_id/`, positions 1..10 únicas, ≤10 fotos, kind `photo` exige media, `photo_consent=false` bloquea (error con nombre del niño), errores de datos = español genérico, `exception others` → mensaje controlado. Cada unidad de identidad, no de RLS.
+- En el action (`app/(app)/actions.ts`): saneo barato del payload antes de llamar a la RPC (dedup/filtros), revalidatePath("/") solo con `ok: true`.
+
 ## What is **not** in this spec
 
 - Pantalla `/avisos` y todo lo aislado por kind.
@@ -231,3 +254,33 @@ type CreatePostResult = { ok: true } | { ok: false; error: string }; // español
 - `app/globals.css`, fuentes y el resto de las rutas (`/kids`, `/account`, `/notices`).
 
 Cada uno de esos, si llega, va en su propio spec.
+
+## Verification
+
+Fecha: 2026-10-24.
+
+Migraciones remotas aplicadas (en orden): `create_post_kind_enum`, `create_posts_tables_rls`, `create_posts_media_bucket`, `add_posts_author_idx` (extra: FK `posts.author_id` sin índice cubriente marcada por advisors), `create_post_rpc` (deviación estructural: transacción atómica en RPC `SECURITY DEFINER`), `temp_debug_posts_media_insert` + `temp_debug_mime_guard` (debug, reemplazadas por `fix_posts_media_bucket_guards`).
+
+Evidencia por criterio:
+
+- **Enum**: `pg_enum` confirma `post_kind` con los 7 valores exactos y ningún enum nuevo.
+- **Tablas/policies**: `list_tables` = 9 en `public`; 6 policies con `private.is_staff_of_daycare`; checks y FKs (`CASCADE`/`RESTRICT`) verificados vía `pg_constraint`.
+- **Bucket**: `posts-media` privado; límites NATIVOS (`file_size_limit` 4MB + `allowed_mime_types` jpeg/png/webp) — ver el desvío documentado en Data model: el guard `metadata->>'size'` en RLS denegaba uploads válidos porque el storage-api evalúa la policy antes de que metadata tenha size (probes reales: subida válida 200, 4194305 bytes → **413 Payload too large**, `image/gif` → **415 invalid_mime_type**, token anónimo → **403 RLS**).
+- **Para real + "Todos"**: el modal muestra los niños reales del daycare (Carlos, Zeta, ordenados) y el toggle "Todos" pasa de 3 pressed (2 niños + botón) a 0. Screenshot `spec13-modal-para-real.png`.
+- **Validaciones de fotos** (fixtures reales): `.txt` → error mime; PNG de 5,28MB → error de tamaño; 11 fotos → "Máximo 10 fotos."; kind Foto sin fotos → error correspondiente y sin envío. Screenshot `spec13-fotos-error-tipo-foto.png`.
+- **Flujo E2E de publicación** (casos borrados después: DB quedó 0 posts / 0 objetos): post con 2 fotos (grid de 2 columnas en feed con URLs firmadas), post sin fotos, archivo de 4MB justo dentro del límite; `post_media` con positions 1..n en el orden de la UI; fallo de subida limpia los archivos ya subidos (`remove()` del bucket) y reintentable. Screenshot `spec13-e2e-publish-2-fotos.png` / nodo amber durio: `spec13-boton-publicando.png` (el estado es transitorio; el `disabled={publishing}` es código).
+- **photo_consent = false**: con Zeta marcada `false` dentro de una txn, la RPC devuelve "No podés publicar fotos de Zeta: la familia no dio consentimiento." y el rollback no deja filas.
+- **RLS formal (Paso 11)**: staff ve/inscribe los tres; parent ve 0/0/0 con post vivo en la txn, su INSERT es denegado, y staff contra otro daycare también; parent no ve objetos del bucket.
+- **Advisors**: sin alertas nuevas atribuibles (WARNs de RPCs SECURITY DEFINER intencionales ya adoptados en SPEC 12; anon sin EXECUTE confirmado en `role_routine_grants`; `auth_leaked_password_protection` preexistente).
+- **Gates**: `next typegen` ✓, `tsc --noEmit` ✓, `ESLint` ✓. `npm run build` falla SOLO en `/_global-error` con el bug preexistente de Next 16.3.6 documentado en Risks (compilación y typecheck corren y pasan antes de ese prerender).
+- **Comparación de mockups**: screenshots del feed real (desktop 1440 y 375px, el 375 sin scroll horizontal: scrollWidth=clientWidth=365) y del modal vs `feed.dc.html` / `crear-publicacion.dc.html`: estructura, paleta y tipografía coinciden; las diferencias conscientes son las documentadas en Decisions ("Todos" vs "Toda la sala", pills múltiples de kinds, sin footer de likes/comentarios/Editar, "ÚLTIMAS PUBLICACIONES").
+
+Desviaciones respecto del literal del draft (todas en Data model / Decisions / este log):
+
+1. `kinds` como `post_kind[]` (multi-toggle) — literal del draft, no desvío.
+2. RPC `public.create_post(jsonb)` `SECURITY DEFINER` para la transacción atómica (el client supabase-js no tiene transacciones; patrón SPEC 12).
+3. Guards de foto (4MB + mimetypes) como capacidad nativa del bucket y no como cláusula RLS.
+4. `owner_id = (select auth.uid())::text` en la policy DELETE (storage `owner_id` es text en este schema).
+5. Índice extra `posts_author_id_idx` para dejar los advisors limpios.
+
+Datos de prueba: todos los posts/objetos/filas de prueba fueron eliminados; la base queda con 0 posts, 0 media y 0 objetos en `posts-media`.

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { children } from "@/data/children";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { postKinds } from "@/utils/post-kinds";
+import type { FeedPostKid, PostKind } from "@/utils/post-kinds";
+import { createClient as createBrowserSupabaseClient } from "@/utils/supabase/client";
+import { createPost } from "@/app/(app)/actions";
 
-const roomKids = children.slice(0, 3);
-const allKidIds = roomKids.map((child) => child.id);
+const POSTS_MEDIA_BUCKET = "posts-media";
 
 const labelClass =
   "mb-[10px] text-[12px] font-extrabold tracking-[.7px] text-[#94887B]";
@@ -15,45 +17,64 @@ type CreatePostErrors = {
   kids?: string;
   kinds?: string;
   description?: string;
+  photos?: string;
 };
 
-type PostKind =
-  | "meal"
-  | "nap"
-  | "activity"
-  | "achievement"
-  | "mood"
-  | "photo"
-  | "announcement";
+const ACCEPTED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_PHOTOS = 10;
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // 4MB
 
-const postKinds: { id: PostKind; label: string; bg: string; fg: string }[] = [
-  { id: "meal", label: "Comida", bg: "#9A7B1E", fg: "#FFFFFF" },
-  { id: "nap", label: "Siesta", bg: "#E7DCF6", fg: "#7B5FC0" },
-  { id: "activity", label: "Actividad", bg: "#2E89A6", fg: "#FFFFFF" },
-  { id: "achievement", label: "Logro", bg: "#CFEBD8", fg: "#3E9B6C" },
-  { id: "mood", label: "Ánimo", bg: "#F9D2DE", fg: "#C56486" },
-  { id: "photo", label: "Foto", bg: "#FBD8CC", fg: "#D9684A" },
-  { id: "announcement", label: "Anuncio", bg: "#CCD8F4", fg: "#4E72C8" },
+type PendingPhoto = {
+  file: File;
+  previewUrl: string;
+};
+
+type CreatePostModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onPublish: () => void;
+  kids: FeedPostKid[];
+  daycareId: string;
+};
+
+/* Paleta de avatar del mockup (SPEC 06), ciclando por índice para niños reales */
+const kidAvatarPalette = [
+  { bg: "#A9D9E8", fg: "#1F7A93" },
+  { bg: "#F4B8CC", fg: "#B5587F" },
+  { bg: "#B9DEC4", fg: "#3E9B6C" },
 ];
+
+function initialOf(fullName: string): string {
+  return fullName.trim()[0]?.toUpperCase() ?? "?";
+}
 
 export default function CreatePostModal({
   open,
   onClose,
   onPublish,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onPublish: () => void;
-}) {
+  kids,
+  daycareId,
+}: CreatePostModalProps) {
   const [selectedKids, setSelectedKids] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<PostKind[]>([]);
   const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [errors, setErrors] = useState<CreatePostErrors>({});
+  const [publishing, setPublishing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const sortedKids = [...kids].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName, "es"),
+  );
 
   const resetForm = useCallback(() => {
     setSelectedKids([]);
     setSelectedKinds([]);
     setDescription("");
+    setPhotos((current) => {
+      for (const photo of current) URL.revokeObjectURL(photo.previewUrl);
+      return [];
+    });
     setErrors({});
   }, []);
 
@@ -101,12 +122,15 @@ export default function CreatePostModal({
 
   const toggleAllKids = () => {
     setSelectedKids((current) =>
-      current.length === roomKids.length ? [] : [...allKidIds],
+      current.length === sortedKids.length
+        ? []
+        : sortedKids.map((kid) => kid.id),
     );
     clearError("kids");
   };
 
-  const allKidsSelected = selectedKids.length === roomKids.length;
+  const allKidsSelected =
+    sortedKids.length > 0 && selectedKids.length === sortedKids.length;
 
   const toggleKind = (kind: PostKind) => {
     setSelectedKinds((current) =>
@@ -117,7 +141,105 @@ export default function CreatePostModal({
     clearError("kinds");
   };
 
+  const addPhotos = (incoming: FileList | null) => {
+    clearError("photos");
+    if (!incoming || incoming.length === 0) return;
+
+    const files = Array.from(incoming);
+    const errorPhoto = (message: string) =>
+      setErrors((current) => ({ ...current, photos: message }));
+
+    if (files.some((file) => !ACCEPTED_MIME.has(file.type))) {
+      errorPhoto("Solo podés subir imágenes JPG, PNG o WebP.");
+      return;
+    }
+    if (files.some((file) => file.size > MAX_PHOTO_BYTES)) {
+      errorPhoto("Cada foto no puede superar 4MB.");
+      return;
+    }
+    if (photos.length + files.length > MAX_PHOTOS) {
+      errorPhoto("Máximo 10 fotos.");
+      return;
+    }
+
+    setPhotos((current) => [
+      ...current,
+      ...files.map((file) => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })),
+    ]);
+  };
+
+  const removePhoto = (index: number) => {
+    clearError("photos");
+    setPhotos((current) => {
+      const target = current[index];
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((_, position) => position !== index);
+    });
+  };
+
+  const setPhotoError = (message: string) =>
+    setErrors((current) => ({ ...current, photos: message }));
+
+  const uploadAndPublish = async () => {
+    if (publishing) return;
+    setPublishing(true);
+
+    const supabase = createBrowserSupabaseClient();
+    const uploadedPaths: string[] = [];
+    const cleanup = async () => {
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from(POSTS_MEDIA_BUCKET).remove(uploadedPaths);
+      }
+    };
+
+    try {
+      const media: { storagePath: string; position: number }[] = [];
+      for (let index = 0; index < photos.length; index += 1) {
+        const photo = photos[index];
+        const extension = photo.file.name.includes(".")
+          ? photo.file.name.split(".").pop()!
+          : "jpg";
+        const storagePath = `${daycareId}/${crypto.randomUUID()}.${extension}`;
+        const { error } = await supabase.storage
+          .from(POSTS_MEDIA_BUCKET)
+          .upload(storagePath, photo.file, { contentType: photo.file.type });
+        if (error) {
+          throw "upload";
+        }
+        uploadedPaths.push(storagePath);
+        media.push({ storagePath, position: index + 1 });
+      }
+
+      const result = await createPost({
+        kinds: selectedKinds,
+        childIds: selectedKids,
+        description,
+        media,
+      });
+
+      if (!result.ok) {
+        await cleanup();
+        setPhotoError(result.error);
+        return;
+      }
+
+      // La subida y el insert quedaron completos; ninguna foto queda huérfana.
+      resetForm();
+      onPublish();
+      return;
+    } catch {
+      await cleanup();
+      setPhotoError("No se pudieron subir las fotos. Intentá de nuevo.");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const handlePublish = () => {
+    if (publishing) return;
     const nextErrors: CreatePostErrors = {};
     if (selectedKids.length === 0) {
       nextErrors.kids = "Elegí al menos un niño";
@@ -128,10 +250,13 @@ export default function CreatePostModal({
     if (description.trim() === "") {
       nextErrors.description = "Escribí una descripción";
     }
+    if (selectedKinds.includes("photo") && photos.length === 0) {
+      nextErrors.photos = "El tipo Foto requiere al menos una imagen.";
+    }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    resetForm();
-    onPublish();
+
+    void uploadAndPublish();
   };
 
   return (
@@ -145,6 +270,18 @@ export default function CreatePostModal({
         className="w-full max-w-[580px] overflow-hidden rounded-[24px] border border-[#ECE0D0] bg-[#FBF4EC] shadow-[0_20px_50px_-24px_rgba(63,54,46,.35)]"
         onClick={(event) => event.stopPropagation()}
       >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          aria-label="Agregar fotos"
+          onChange={(event) => {
+            addPhotos(event.target.files);
+            event.target.value = "";
+          }}
+          className="hidden"
+        />
         <div className="flex items-center justify-between border-b border-[#ECE0D0] px-[26px] py-5">
           <button
             type="button"
@@ -159,54 +296,65 @@ export default function CreatePostModal({
           <button
             type="button"
             onClick={handlePublish}
-            className="text-[15px] font-extrabold text-[#D9583C]"
+            disabled={publishing}
+            className={`text-[15px] font-extrabold ${
+              publishing ? "text-[#B6A99B]" : "text-[#D9583C]"
+            }`}
           >
-            Publicar
+            {publishing ? "Publicando…" : "Publicar"}
           </button>
         </div>
 
         <div className="px-[26px] py-6">
           <div className={labelClass}>PARA</div>
-          <div
-            className={`flex flex-wrap gap-[9px] ${errors.kids ? "mb-1.5" : "mb-[22px]"}`}
-          >
-            {roomKids.map((child) => {
-              const selected = selectedKids.includes(child.id);
-              return (
-                <button
-                  key={child.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => toggleKid(child.id)}
-                  className={`flex items-center gap-2 rounded-full border-[1.5px] py-1.5 pl-1.5 pr-3.5 text-[14px] font-bold ${
-                    selected
-                      ? "border-[#3F362E] bg-[#3F362E] text-white"
-                      : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
-                  }`}
-                >
-                  <span
-                    className="flex h-[26px] w-[26px] items-center justify-center rounded-full font-display text-[13px] font-semibold"
-                    style={{ background: child.avatar.bg, color: child.avatar.fg }}
-                  >
-                    {child.initial}
-                  </span>
-                  {child.name.split(" ")[0]}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              aria-pressed={allKidsSelected}
-              onClick={toggleAllKids}
-              className={`rounded-full border-[1.5px] px-4 py-1.5 text-[14px] font-bold ${
-                allKidsSelected
-                  ? "border-[#3F362E] bg-[#3F362E] text-white"
-                  : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
-              }`}
+          {sortedKids.length === 0 ? (
+            <div className={`${errorClass} mb-[22px]`}>
+              No hay niños cargados todavía
+            </div>
+          ) : (
+            <div
+              className={`flex flex-wrap gap-[9px] ${errors.kids ? "mb-1.5" : "mb-[22px]"}`}
             >
-              Toda la sala
-            </button>
-          </div>
+              {sortedKids.map((kid, index) => {
+                const selected = selectedKids.includes(kid.id);
+                const avatar =
+                  kidAvatarPalette[index % kidAvatarPalette.length];
+                return (
+                  <button
+                    key={kid.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => toggleKid(kid.id)}
+                    className={`flex items-center gap-2 rounded-full border-[1.5px] py-1.5 pl-1.5 pr-3.5 text-[14px] font-bold ${
+                      selected
+                        ? "border-[#3F362E] bg-[#3F362E] text-white"
+                        : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
+                    }`}
+                  >
+                    <span
+                      className="flex h-[26px] w-[26px] items-center justify-center rounded-full font-display text-[13px] font-semibold"
+                      style={{ background: avatar.bg, color: avatar.fg }}
+                    >
+                      {initialOf(kid.fullName)}
+                    </span>
+                    {kid.fullName.split(" ")[0]}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                aria-pressed={allKidsSelected}
+                onClick={toggleAllKids}
+                className={`rounded-full border-[1.5px] px-4 py-1.5 text-[14px] font-bold ${
+                  allKidsSelected
+                    ? "border-[#3F362E] bg-[#3F362E] text-white"
+                    : "border-[#ECE0D0] bg-[#FFFDF9] text-[#6E6359]"
+                }`}
+              >
+                Todos
+              </button>
+            </div>
+          )}
           {errors.kids && (
             <div className={`${errorClass} mb-[22px]`}>{errors.kids}</div>
           )}
@@ -256,43 +404,64 @@ export default function CreatePostModal({
             <div className={`${errorClass} mb-[22px]`}>{errors.description}</div>
           )}
 
-          <div className={labelClass}>FOTOS</div>
-          <div className="flex gap-3">
-            <div className="flex h-[96px] w-[96px] items-center justify-center rounded-[14px] border border-[#ECE0D0] bg-[#F4ECE1] text-[#CBB89F]">
-              <svg
-                width="26"
-                height="26"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="9" cy="9" r="2" />
-                <path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 21" />
-              </svg>
+          <div className="flex items-baseline justify-between">
+            <div className={labelClass}>FOTOS</div>
+            <div className="text-[12px] font-bold text-[#94887B]">
+              {photos.length}/10
             </div>
-            <button
-              type="button"
-              className="flex h-[96px] w-[96px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-[#DBCDBA] bg-[#F4ECE1] text-[12px] text-[#B0A290]"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#C5503A"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span>Agregar</span>
-            </button>
           </div>
+          <div
+            className={`flex flex-wrap gap-3 ${errors.photos ? "mb-1.5" : ""}`}
+          >
+            {photos.map((photo, index) => {
+              return (
+                <div
+                  key={photo.previewUrl}
+                  className="relative h-[96px] w-[96px]"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.previewUrl}
+                    alt={`Foto ${index + 1} para publicar`}
+                    className="h-full w-full rounded-[14px] object-cover"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Quitar foto ${index + 1}`}
+                    onClick={() => removePhoto(index)}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[#ECE0D0] bg-white text-[13px] font-extrabold text-[#D9583C]"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+            {photos.length < MAX_PHOTOS && (
+              <button
+                type="button"
+                aria-label="Agregar foto"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-[96px] w-[96px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-[#DBCDBA] bg-[#F4ECE1] text-[12px] text-[#B0A290]"
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#C5503A"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span>Agregar</span>
+              </button>
+            )}
+          </div>
+          {errors.photos && (
+            <div className={errorClass}>{errors.photos}</div>
+          )}
         </div>
       </div>
     </div>
